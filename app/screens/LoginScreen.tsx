@@ -1,5 +1,7 @@
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useState } from "react";
 import {
+  Image,
   StyleSheet,
   Text,
   TextInput,
@@ -7,12 +9,33 @@ import {
   View,
 } from "react-native";
 
-export default function LoginScreen({ navigation }) {
+type RootStackParamList = {
+  Login: undefined;
+  ForgotPassword: undefined;
+  Register: undefined;
+};
+
+type LoginScreenNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  "Login"
+>;
+
+type Props = {
+  navigation: LoginScreenNavigationProp;
+};
+
+export default function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
 
   return (
     <View style={styles.container}>
+      {/* 👇 Exemplo com imagem local */}
+      <Image
+        source={require("../images/logo.jpeg")} // coloque sua imagem em assets
+        style={styles.logo}
+        resizeMode="contain"
+      />
       <Text style={styles.title}>Login</Text>
 
       <TextInput
@@ -49,8 +72,9 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    padding: 20,
+    justifyContent: "flex-start",
+    paddingLeft: 20,
+    paddingRight: 20,
     backgroundColor: "#fff",
   },
   title: {
@@ -58,6 +82,11 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 20,
     textAlign: "center",
+  },
+  logo: {
+    height: 400,
+    alignSelf: "center",
+    marginBottom: 0,
   },
   input: {
     borderWidth: 1,
