@@ -41,13 +41,13 @@ function formatBR(d: Date) {
 export default function RegisterScreen({ navigation }: any) {
   const [name, setName] = useState("");
   const [senha, setSenha] = useState("");
-  // birthText = o que o usuário DIGITA; birthDate = objeto Date válido (ou null)
+  const [email, setEmail] = useState("");
+  const [profissao, setProfissao] = useState("");
   const [birthText, setBirthText] = useState("");
   const [birthDate, setBirthDate] = useState<Date | null>(null);
   const [showPicker, setShowPicker] = useState(false);
   const [dateError, setDateError] = useState<string | null>(null);
 
-  // Quando o usuário termina de editar (onBlur) validamos + limitamos
   const validateAndNormalizeTextDate = () => {
     if (birthText.length === 0) {
       setBirthDate(null);
@@ -67,7 +67,6 @@ export default function RegisterScreen({ navigation }: any) {
     }
     const clamped = clampDate(parsed, MIN_DATE, MAX_DATE);
     if (clamped.getTime() !== parsed.getTime()) {
-      // Se estava fora do limite, ajusta e reflete no texto
       setBirthDate(clamped);
       setBirthText(formatBR(clamped));
       setDateError(
@@ -81,7 +80,6 @@ export default function RegisterScreen({ navigation }: any) {
     setDateError(null);
   };
 
-  // Quando o usuário escolhe no DatePicker
   const handlePickerChange = (_: any, selected?: Date) => {
     if (Platform.OS === "android") setShowPicker(false);
     if (!selected) return;
@@ -113,35 +111,41 @@ export default function RegisterScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
-      <Image
-        source={require("../images/logo.jpeg")}
-        style={styles.logo}
-        resizeMode="contain"
-      />
-      <Text style={styles.title}>Criar Usuário</Text>
+      <View style={styles.menu}>
+        <Image
+          source={require("../images/logo.jpeg")}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        <Text style={styles.title}>Criar Usuário</Text>
 
-      {/* Nome (editável) */}
-      <TextInput
-        style={styles.input}
-        placeholder="Nome"
-        value={name}
-        onChangeText={setName}
-        autoCapitalize="words"
-        returnKeyType="next"
-      />
+        <TextInput
+          style={styles.input}
+          placeholder="Nome"
+          value={name}
+          onChangeText={setName}
+          autoCapitalize="words"
+          returnKeyType="next"
+        />
 
-      {/* Senha (editável) */}
-      <TextInput
-        style={styles.input}
-        placeholder="Senha"
-        value={senha}
-        onChangeText={setSenha}
-        secureTextEntry
-        returnKeyType="done"
-      />
+        <TextInput
+          style={styles.input}
+          placeholder="Email"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="words"
+          returnKeyType="next"
+        />
 
-      {/* Data de nascimento: DIGITÁVEL + PICKER */}
-      <View style={{ gap: 8, marginBottom: 12 }}>
+        <TextInput
+          style={styles.input}
+          placeholder="profissão"
+          value={profissao}
+          onChangeText={setProfissao}
+          autoCapitalize="words"
+          returnKeyType="next"
+        />
+
         <MaskInput
           style={styles.input}
           placeholder="Data de Nascimento (DD/MM/AAAA)"
@@ -152,30 +156,33 @@ export default function RegisterScreen({ navigation }: any) {
           keyboardType="numeric"
           maxLength={10}
         />
-        {/* <TouchableOpacity
-          onPress={() => setShowPicker(true)}
-          style={styles.secondaryButton}
-        > */}
-        {/* <Text style={styles.secondaryButtonText}>Escolher no calendário</Text> */}
-        {/* </TouchableOpacity> */}
         {!!dateError && <Text style={styles.errorText}>{dateError}</Text>}
-      </View>
 
-      {/* iOS: spinner/inline; Android: modal. */}
-      {showPicker && (
-        <DateTimePicker
-          value={birthDate || new Date(2000, 0, 1)}
-          mode="date"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          onChange={handlePickerChange}
-          minimumDate={MIN_DATE}
-          maximumDate={MAX_DATE}
+        {/* iOS: spinner/inline; Android: modal. */}
+        {showPicker && (
+          <DateTimePicker
+            value={birthDate || new Date(2000, 0, 1)}
+            mode="date"
+            display={Platform.OS === "ios" ? "spinner" : "default"}
+            onChange={handlePickerChange}
+            minimumDate={MIN_DATE}
+            maximumDate={MAX_DATE}
+          />
+        )}
+        {/* Senha (editável) */}
+        <TextInput
+          style={styles.input}
+          placeholder="Senha"
+          value={senha}
+          onChangeText={setSenha}
+          secureTextEntry
+          returnKeyType="done"
         />
-      )}
 
-      <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-        <Text style={styles.buttonText}>Entrar</Text>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.button} onPress={handleSubmit}>
+          <Text style={styles.buttonText}>Criar</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -183,11 +190,26 @@ export default function RegisterScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    padding: 20,
+    justifyContent: "flex-start",
+    alignContent: "flex-start",
+    // Adicionado para centralizar os itens horizontalmente
+    alignItems: "center",
     backgroundColor: "#fff",
+    width: "100%",
   },
-  logo: { height: 200, alignSelf: "center", marginBottom: 20 },
+  menu: {
+    flex: 1,
+    justifyContent: "flex-start",
+    // Adicionado para centralizar os itens horizontalmente
+    alignItems: "center",
+    backgroundColor: "#fff",
+
+    width: "80%",
+  },
+  logo: {
+    maxHeight: 300, // Diminuí um pouco para telas menores
+    width: "80%",
+  },
   title: {
     fontSize: 28,
     fontWeight: "bold",
@@ -198,14 +220,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ccc",
     padding: 12,
+    // Alterado para largura de 100% para ser responsivo
+    width: "100%",
     borderRadius: 8,
+    marginBottom: 12, // Movido margin para cá para ser consistente
   },
-  errorText: { color: "#d00" },
+
+  errorText: {
+    color: "#d00",
+    alignSelf: "flex-start", // Alinha o texto de erro à esquerda
+  },
   button: {
     backgroundColor: "#007bff",
     padding: 15,
     borderRadius: 8,
     marginTop: 12,
+    // Alterado para largura de 100% para consistência
+    width: "100%",
   },
   buttonText: { color: "#fff", textAlign: "center", fontWeight: "bold" },
   secondaryButton: {
@@ -213,6 +244,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#007bff",
     paddingVertical: 8,
+    width: 40,
     paddingHorizontal: 12,
     borderRadius: 8,
   },
