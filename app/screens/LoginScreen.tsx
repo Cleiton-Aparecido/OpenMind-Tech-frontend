@@ -1,6 +1,8 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import React, { useState } from "react";
 import {
+  Alert,
   Image,
   StyleSheet,
   Text,
@@ -13,6 +15,7 @@ type RootStackParamList = {
   Login: undefined;
   ForgotPassword: undefined;
   Register: undefined;
+  Home: undefined; // por exemplo, se tiver uma tela Home
 };
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<
@@ -27,13 +30,53 @@ type Props = {
 export default function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleLogin() {
+    if (!email || !senha) {
+      Alert.alert("Erro", "Preencha e-mail e senha.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      console.log("Enviando requisição de login...");
+      const response = await fetch("http://localhost:3010/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password: senha }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Credenciais inválidas");
+      }
+
+      const data = await response.json();
+
+      console.log(data.access_token);
+
+      await AsyncStorage.setItem("userToken", data.access_token);
+
+      const token = await AsyncStorage.getItem("userToken");
+
+      console.log("token: " + token);
+
+      Alert.alert("Sucesso", "Login realizado!");
+      navigation.navigate("Home");
+    } catch (err: any) {
+      Alert.alert("Erro", err.message || "Falha no login");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <View style={styles.container}>
-      {/* 👇 Exemplo com imagem local */}
       <View style={styles.menu}>
         <Image
-          source={require("../images/logo.jpeg")} // coloque sua imagem em assets
+          source={require("../images/logo.jpeg")}
           style={styles.logo}
           resizeMode="contain"
         />
@@ -45,6 +88,7 @@ export default function LoginScreen({ navigation }: Props) {
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
+          autoCapitalize="none"
         />
 
         <TextInput
@@ -55,8 +99,14 @@ export default function LoginScreen({ navigation }: Props) {
           secureTextEntry
         />
 
-        <TouchableOpacity style={styles.button}>
-          <Text style={styles.buttonText}>Entrar</Text>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={handleLogin}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? "Entrando..." : "Entrar"}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")}>
@@ -71,49 +121,10 @@ export default function LoginScreen({ navigation }: Props) {
   );
 }
 
-// const styles = StyleSheet.create({
-//   container: {
-//     // flex: 1,
-//     // justifyContent: "center",
-//     // paddingLeft: 20,
-//     // paddingRight: 20,
-//     backgroundColor: "#fff",
-//   },
-//   menu: {},
-//   title: {
-//     fontSize: 28,
-//     fontWeight: "bold",
-//     marginBottom: 20,
-//     textAlign: "center",
-//   },
-//   logo: {
-//     height: 400,
-//     alignSelf: "center",
-//     marginBottom: 0,
-//   },
-//   input: {
-//     borderWidth: 1,
-//     borderColor: "#ccc",
-//     padding: 12,
-//     borderRadius: 8,
-//     marginBottom: 12,
-//   },
-//   button: {
-//     backgroundColor: "#007bff",
-//     padding: 15,
-//     borderRadius: 8,
-//     marginBottom: 10,
-//   },
-//   buttonText: { color: "#fff", textAlign: "center", fontWeight: "bold" },
-//   link: { color: "#007bff", textAlign: "center", marginTop: 10 },
-// });
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "flex-start",
-    alignContent: "flex-start",
-    // Adicionado para centralizar os itens horizontalmente
     alignItems: "center",
     backgroundColor: "#fff",
     width: "100%",
@@ -121,14 +132,12 @@ const styles = StyleSheet.create({
   menu: {
     flex: 1,
     justifyContent: "flex-start",
-    // Adicionado para centralizar os itens horizontalmente
     alignItems: "center",
     backgroundColor: "#fff",
-
     width: "80%",
   },
   logo: {
-    maxHeight: 300, // Diminuí um pouco para telas menores
+    maxHeight: 300,
     width: "80%",
   },
   title: {
@@ -141,36 +150,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ccc",
     padding: 12,
-    // Alterado para largura de 100% para ser responsivo
     width: "100%",
     borderRadius: 8,
-    marginBottom: 12, // Movido margin para cá para ser consistente
-  },
-
-  errorText: {
-    color: "#d00",
-    alignSelf: "flex-start", // Alinha o texto de erro à esquerda
+    marginBottom: 12,
   },
   button: {
     backgroundColor: "#007bff",
     padding: 15,
     borderRadius: 8,
     marginTop: 12,
-    // Alterado para largura de 100% para consistência
     width: "100%",
   },
   buttonText: { color: "#fff", textAlign: "center", fontWeight: "bold" },
-  secondaryButton: {
-    alignSelf: "flex-start",
-    borderWidth: 1,
-    borderColor: "#007bff",
-    paddingVertical: 8,
-    width: 40,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-  },
-  secondaryButtonText: { color: "#007bff", fontWeight: "600" },
-
-  // buttonText: { color: "#fff", textAlign: "center", fontWeight: "bold" },
   link: { color: "#007bff", textAlign: "center", marginTop: 10 },
 });
