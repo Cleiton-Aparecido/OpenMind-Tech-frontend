@@ -1,6 +1,8 @@
+// RegisterScreen.tsx
 import DateTimePicker from "@react-native-community/datetimepicker";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Image,
   Platform,
@@ -10,7 +12,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import MaskInput, { Masks } from "react-native-mask-input";
 
 const MIN_DATE = new Date(1900, 0, 1);
 const MAX_DATE = new Date(); // hoje
@@ -33,7 +34,6 @@ function clampDate(d: Date, min: Date, max: Date) {
   if (d > max) return max;
   return d;
 }
-
 function formatBR(d: Date) {
   return d.toLocaleDateString("pt-BR");
 }
@@ -42,11 +42,17 @@ export default function RegisterScreen({ navigation }: any) {
   const [name, setName] = useState("");
   const [senha, setSenha] = useState("");
   const [email, setEmail] = useState("");
-  const [profissao, setProfissao] = useState("");
   const [birthText, setBirthText] = useState("");
   const [birthDate, setBirthDate] = useState<Date | null>(null);
   const [showPicker, setShowPicker] = useState(false);
   const [dateError, setDateError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // ⚠️ Em dispositivo físico, troque para o IP da sua máquina (ex.: http://192.168.0.10:3001)
+  const baseURL = useMemo(() => {
+    if (Platform.OS === "android") return "http://10.0.2.2:3001";
+    return "http://localhost:3001";
+  }, []);
 
   const validateAndNormalizeTextDate = () => {
     if (birthText.length === 0) {
@@ -89,24 +95,77 @@ export default function RegisterScreen({ navigation }: any) {
     setDateError(null);
   };
 
-  const handleSubmit = () => {
-    // Força uma última validação do texto digitado
+  const handleSubmit = async () => {
+    // validações locais
     validateAndNormalizeTextDate();
-    if (!name.trim() || !senha.trim()) {
-      Alert.alert("Campos obrigatórios", "Preencha nome e senha.");
+
+    if (!name.trim() || !email.trim() || !senha.trim()) {
+      Alert.alert("Campos obrigatórios", "Preencha nome, e-mail e senha.");
       return;
     }
-    if (!birthDate) {
+    // validação simples de e-mail
+    const emailOk = /\S+@\S+\.\S+/.test(email);
+    if (!emailOk) {
+      Alert.alert("E-mail inválido", "Informe um e-mail válido.");
+      return;
+    }
+    if (senha.length < 6) {
+      Alert.alert("Senha fraca", "A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+
+    setLoading(true);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    try {
+      const resp = await fetch(`${baseURL}/users`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // ⚠️ O backend (pelo seu curl) espera exatamente estas chaves:
+        body: JSON.stringify({ email, name, password: senha }),
+        signal: controller.signal,
+      });
+
+      const raw = await resp.text();
+      let data: any = {};
+      try {
+        data = raw ? JSON.parse(raw) : {};
+      } catch {}
+
+      if (!resp.ok) {
+        const msg =
+          data?.message ||
+          data?.error ||
+          raw ||
+          "Não foi possível criar o usuário.";
+        throw new Error(
+          typeof msg === "string"
+            ? msg
+            : Array.isArray(msg)
+            ? msg[0]
+            : "Erro ao criar usuário"
+        );
+      }
+
+      Alert.alert("Sucesso", "Usuário cadastrado com sucesso!", [
+        {
+          text: "Ir para Login",
+          onPress: () => navigation.navigate("Login"),
+        },
+      ]);
+    } catch (err: any) {
+      const cancelled = err?.name === "AbortError";
       Alert.alert(
-        "Data inválida",
-        dateError || "Digite ou selecione uma data de nascimento."
+        "Erro",
+        cancelled
+          ? "Tempo de requisição esgotado."
+          : err?.message || "Falha no cadastro."
       );
-      return;
+    } finally {
+      clearTimeout(timeout);
+      setLoading(false);
     }
-    Alert.alert(
-      "Sucesso",
-      `Usuário cadastrado!\nNascimento: ${formatBR(birthDate)}`
-    );
   };
 
   return (
@@ -126,6 +185,7 @@ export default function RegisterScreen({ navigation }: any) {
           onChangeText={setName}
           autoCapitalize="words"
           returnKeyType="next"
+          editable={!loading}
         />
 
         <TextInput
@@ -133,32 +193,22 @@ export default function RegisterScreen({ navigation }: any) {
           placeholder="Email"
           value={email}
           onChangeText={setEmail}
-          autoCapitalize="words"
+          autoCapitalize="none"
+          keyboardType="email-address"
           returnKeyType="next"
+          editable={!loading}
         />
 
-        <TextInput
-          style={styles.input}
-          placeholder="profissão"
-          value={profissao}
-          onChangeText={setProfissao}
-          autoCapitalize="words"
-          returnKeyType="next"
-        />
+        {/* Caso queira usar data de nascimento depois, mantenho os handlers */}
+        {/* Botão para abrir o picker (opcional) */}
+        {/* <TouchableOpacity
+          style={styles.secondaryButton}
+          onPress={() => setShowPicker(true)}
+          disabled={loading}
+        >
+          <Text style={styles.secondaryButtonText}>Data</Text>
+        </TouchableOpacity> */}
 
-        <MaskInput
-          style={styles.input}
-          placeholder="Data de Nascimento (DD/MM/AAAA)"
-          value={birthText}
-          onChangeText={setBirthText}
-          onBlur={validateAndNormalizeTextDate}
-          mask={Masks.DATE_DDMMYYYY}
-          keyboardType="numeric"
-          maxLength={10}
-        />
-        {!!dateError && <Text style={styles.errorText}>{dateError}</Text>}
-
-        {/* iOS: spinner/inline; Android: modal. */}
         {showPicker && (
           <DateTimePicker
             value={birthDate || new Date(2000, 0, 1)}
@@ -169,7 +219,8 @@ export default function RegisterScreen({ navigation }: any) {
             maximumDate={MAX_DATE}
           />
         )}
-        {/* Senha (editável) */}
+        {!!dateError && <Text style={styles.errorText}>{dateError}</Text>}
+
         <TextInput
           style={styles.input}
           placeholder="Senha"
@@ -177,10 +228,19 @@ export default function RegisterScreen({ navigation }: any) {
           onChangeText={setSenha}
           secureTextEntry
           returnKeyType="done"
+          editable={!loading}
         />
 
-        <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-          <Text style={styles.buttonText}>Criar</Text>
+        <TouchableOpacity
+          style={[styles.button, loading && { opacity: 0.7 }]}
+          onPress={handleSubmit}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator />
+          ) : (
+            <Text style={styles.buttonText}>Criar</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>
@@ -192,7 +252,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "flex-start",
     alignContent: "flex-start",
-    // Adicionado para centralizar os itens horizontalmente
     alignItems: "center",
     backgroundColor: "#fff",
     width: "100%",
@@ -200,16 +259,11 @@ const styles = StyleSheet.create({
   menu: {
     flex: 1,
     justifyContent: "flex-start",
-    // Adicionado para centralizar os itens horizontalmente
     alignItems: "center",
     backgroundColor: "#fff",
-
     width: "80%",
   },
-  logo: {
-    maxHeight: 300, // Diminuí um pouco para telas menores
-    width: "80%",
-  },
+  logo: { maxHeight: 300, width: "80%" },
   title: {
     fontSize: 28,
     fontWeight: "bold",
@@ -220,23 +274,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ccc",
     padding: 12,
-    // Alterado para largura de 100% para ser responsivo
     width: "100%",
     borderRadius: 8,
-    marginBottom: 12, // Movido margin para cá para ser consistente
+    marginBottom: 12,
   },
-
-  errorText: {
-    color: "#d00",
-    alignSelf: "flex-start", // Alinha o texto de erro à esquerda
-  },
+  errorText: { color: "#d00", alignSelf: "flex-start" },
   button: {
     backgroundColor: "#007bff",
     padding: 15,
     borderRadius: 8,
     marginTop: 12,
-    // Alterado para largura de 100% para consistência
     width: "100%",
+    alignItems: "center",
   },
   buttonText: { color: "#fff", textAlign: "center", fontWeight: "bold" },
   secondaryButton: {
@@ -244,7 +293,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#007bff",
     paddingVertical: 8,
-    width: 40,
+    width: 60,
     paddingHorizontal: 12,
     borderRadius: 8,
   },

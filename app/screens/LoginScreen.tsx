@@ -41,7 +41,7 @@ export default function LoginScreen({ navigation }: Props) {
     setLoading(true);
     try {
       console.log("Enviando requisição de login...");
-      const response = await fetch("http://localhost:3010/auth/login", {
+      const response = await fetch("http://localhost:3001/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
