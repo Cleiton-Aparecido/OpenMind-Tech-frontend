@@ -1,173 +1,194 @@
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { useThemeColor } from '@/hooks/useThemeColor';
-import React from 'react';
-import { ScrollView, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useRef } from 'react';
+import {
+  Alert,
+  Animated,
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View
+} from 'react-native';
 
-export default function ExploreScreen() {
+const { width, height } = Dimensions.get('window');
+const isSmallDevice = width < 375;
+const isMediumDevice = width >= 375 && width < 414;
+
+export default function CreateScreen() {
   const backgroundColor = useThemeColor({}, 'background');
   const tintColor = useThemeColor({}, 'tint');
-  const textColor = useThemeColor({}, 'text');
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
 
-  const professionals = [
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  const contentTypes = [
     {
-      name: 'Lucas Ferreira',
-      role: 'Senior React Developer',
-      company: 'Tech Innovations',
-      skills: ['React', 'TypeScript', 'Next.js'],
-      experience: '5 anos',
-      location: 'São Paulo, SP'
+      icon: 'help-circle',
+      title: 'Quiz Interativo',
+      description: 'Crie quizzes com múltipla escolha',
+      color: '#667eea',
+      gradient: ['#667eea', '#764ba2'],
     },
     {
-      name: 'Fernanda Lima',
-      role: 'Data Scientist',
-      company: 'AI Solutions',
-      skills: ['Python', 'Machine Learning', 'TensorFlow'],
-      experience: '4 anos',
-      location: 'Rio de Janeiro, RJ'
+      icon: 'code-slash',
+      title: 'Exercício Prático',
+      description: 'Desafios de programação',
+      color: '#f093fb',
+      gradient: ['#f093fb', '#f5576c'],
     },
     {
-      name: 'Pedro Santos',
-      role: 'DevOps Engineer',
-      company: 'Cloud Systems',
-      skills: ['AWS', 'Docker', 'Kubernetes'],
-      experience: '6 anos',
-      location: 'Belo Horizonte, MG'
+      icon: 'bulb',
+      title: 'Charada Tech',
+      description: 'Enigmas e quebra-cabeças',
+      color: '#4facfe',
+      gradient: ['#4facfe', '#00f2fe'],
     },
     {
-      name: 'Juliana Costa',
-      role: 'UX/UI Designer',
-      company: 'Design Studio',
-      skills: ['Figma', 'Adobe XD', 'Prototyping'],
-      experience: '3 anos',
-      location: 'Curitiba, PR'
+      icon: 'book',
+      title: 'Tópico Educativo',
+      description: 'Artigos e explicações',
+      color: '#43e97b',
+      gradient: ['#43e97b', '#38f9d7'],
     },
-    {
-      name: 'Rafael Oliveira',
-      role: 'Mobile Developer',
-      company: 'App Factory',
-      skills: ['React Native', 'Flutter', 'Swift'],
-      experience: '4 anos',
-      location: 'Brasília, DF'
-    },
-    {
-      name: 'Amanda Silva',
-      role: 'Cybersecurity Analyst',
-      company: 'SecureTech',
-      skills: ['Penetration Testing', 'CISSP', 'Firewall'],
-      experience: '5 anos',
-      location: 'Porto Alegre, RS'
-    }
   ];
 
-  const skillColors = [
-    '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57', '#FF9FF3'
-  ];
+  const handleCreateContent = (type: string) => {
+    Alert.alert(
+      'Criar Conteúdo',
+      `Você selecionou: ${type}`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Continuar', onPress: () => console.log(`Creating ${type}`) }
+      ]
+    );
+  };
 
   return (
     <ThemedView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
-        <ThemedView style={styles.header}>
-          <ThemedText type="title" style={styles.headerTitle}>
-            Explorar Profissionais
-          </ThemedText>
-          <ThemedText style={styles.headerSubtitle}>
-            Descubra talentos incríveis em tecnologia
-          </ThemedText>
-        </ThemedView>
+        <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
+          <View style={styles.headerWhite}>
+            <View style={styles.headerContent}>
+              <ThemedText style={styles.headerTitle}>Criar Conteúdo</ThemedText>
+              <ThemedText style={styles.headerSubtitle}>
+                Compartilhe seu conhecimento com a comunidade
+              </ThemedText>
+            </View>
+          </View>
+        </Animated.View>
 
-        {/* Search Bar */}
-        <ThemedView style={styles.searchSection}>
-          <ThemedView style={[styles.searchContainer, { backgroundColor }]}>
-            <TextInput
-              style={[styles.searchInput, { color: textColor }]}
-              placeholder="Buscar por skills, cargo ou localização..."
-              placeholderTextColor={useThemeColor({}, 'icon')}
-            />
-            <TouchableOpacity style={[styles.searchButton, { backgroundColor: tintColor }]}>
-              <ThemedText style={styles.searchButtonText}>🔍</ThemedText>
-            </TouchableOpacity>
-          </ThemedView>
-        </ThemedView>
-
-        {/* Filter Tags */}
-        <ThemedView style={styles.filterSection}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {['Todos', 'Desenvolvimento', 'Data Science', 'Design', 'DevOps', 'Mobile'].map((filter, index) => (
-              <TouchableOpacity 
-                key={index} 
+        {/* Content Types Grid */}
+        <Animated.View style={[
+          styles.contentContainer,
+          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+        ]}>
+          <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
+            🎯 Escolha o tipo de conteúdo
+          </ThemedText>
+          
+          <View style={styles.contentGrid}>
+            {contentTypes.map((item, index) => (
+              <Animated.View
+                key={index}
                 style={[
-                  styles.filterTag, 
-                  { backgroundColor: index === 0 ? tintColor : 'transparent', borderColor: tintColor }
+                  styles.contentCard,
+                  { 
+                    opacity: fadeAnim,
+                    transform: [{ 
+                      translateY: slideAnim.interpolate({
+                        inputRange: [0, 30],
+                        outputRange: [0, 30 + (index * 10)],
+                      })
+                    }]
+                  }
                 ]}
               >
-                <ThemedText style={[
-                  styles.filterTagText, 
-                  { color: index === 0 ? 'white' : tintColor }
-                ]}>
-                  {filter}
-                </ThemedText>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.cardTouchable}
+                  onPress={() => handleCreateContent(item.title)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.cardContent}>
+                    <View style={[styles.cardIcon, { backgroundColor: item.color }]}>
+                      <Ionicons name={item.icon as any} size={isSmallDevice ? 28 : 32} color="white" />
+                    </View>
+                    <ThemedText style={styles.cardTitle}>{item.title}</ThemedText>
+                    <ThemedText style={styles.cardDescription}>
+                      {item.description}
+                    </ThemedText>
+                    <View style={styles.cardArrow}>
+                      <Ionicons name="arrow-forward" size={20} color={item.color} />
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              </Animated.View>
             ))}
-          </ScrollView>
-        </ThemedView>
+          </View>
+        </Animated.View>
 
-        {/* Professionals List */}
-        <ThemedView style={styles.professionalsSection}>
-          {professionals.map((professional, index) => (
-            <TouchableOpacity key={index} style={styles.professionalCard}>
-              <ThemedView style={[styles.cardContent, { backgroundColor }]}>
-                {/* Avatar and Basic Info */}
-                <ThemedView style={styles.cardHeader}>
-                  <ThemedView style={[styles.avatar, { backgroundColor: skillColors[index % skillColors.length] }]}>
-                    <ThemedText style={styles.avatarText}>
-                      {professional.name.split(' ').map(n => n[0]).join('')}
-                    </ThemedText>
-                  </ThemedView>
-                  <ThemedView style={styles.basicInfo}>
-                    <ThemedText type="defaultSemiBold" style={styles.professionalName}>
-                      {professional.name}
-                    </ThemedText>
-                    <ThemedText style={styles.professionalRole}>
-                      {professional.role}
-                    </ThemedText>
-                    <ThemedText style={[styles.company, { color: tintColor }]}>
-                      {professional.company}
-                    </ThemedText>
-                  </ThemedView>
-                  <TouchableOpacity style={[styles.connectBtn, { backgroundColor: tintColor }]}>
-                    <ThemedText style={styles.connectBtnText}>Conectar</ThemedText>
-                  </TouchableOpacity>
-                </ThemedView>
+        {/* Quick Stats */}
+        <Animated.View style={[styles.statsSection, { opacity: fadeAnim }]}>
+          <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
+            📊 Suas Estatísticas
+          </ThemedText>
+          <View style={styles.statsGrid}>
+            <View style={[styles.statCard, { backgroundColor }]}>
+              <ThemedText style={[styles.statNumber, { color: tintColor }]}>12</ThemedText>
+              <ThemedText style={styles.statLabel}>Conteúdos Criados</ThemedText>
+            </View>
+            <View style={[styles.statCard, { backgroundColor }]}>
+              <ThemedText style={[styles.statNumber, { color: '#f093fb' }]}>1.2k</ThemedText>
+              <ThemedText style={styles.statLabel}>Visualizações</ThemedText>
+            </View>
+            <View style={[styles.statCard, { backgroundColor }]}>
+              <ThemedText style={[styles.statNumber, { color: '#43e97b' }]}>89%</ThemedText>
+              <ThemedText style={styles.statLabel}>Taxa de Acerto</ThemedText>
+            </View>
+          </View>
+        </Animated.View>
 
-                {/* Skills */}
-                <ThemedView style={styles.skillsContainer}>
-                  {professional.skills.map((skill, skillIndex) => (
-                    <ThemedView 
-                      key={skillIndex} 
-                      style={[styles.skillTag, { backgroundColor: `${skillColors[skillIndex % skillColors.length]}20` }]}
-                    >
-                      <ThemedText style={[styles.skillText, { color: skillColors[skillIndex % skillColors.length] }]}>
-                        {skill}
-                      </ThemedText>
-                    </ThemedView>
-                  ))}
-                </ThemedView>
-
-                {/* Additional Info */}
-                <ThemedView style={styles.additionalInfo}>
-                  <ThemedView style={styles.infoItem}>
-                    <ThemedText style={styles.infoLabel}>📍 {professional.location}</ThemedText>
-                  </ThemedView>
-                  <ThemedView style={styles.infoItem}>
-                    <ThemedText style={styles.infoLabel}>💼 {professional.experience}</ThemedText>
-                  </ThemedView>
-                </ThemedView>
-              </ThemedView>
-            </TouchableOpacity>
-          ))}
-        </ThemedView>
+        {/* Recent Activity */}
+        <Animated.View style={[styles.recentSection, { opacity: fadeAnim }]}>
+          <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
+            🕒 Atividade Recente
+          </ThemedText>
+          <View style={[styles.activityCard, { backgroundColor }]}>
+            <View style={styles.activityHeader}>
+              <Ionicons name="trophy" size={24} color="#FFD700" />
+              <View style={styles.activityInfo}>
+                <ThemedText type="defaultSemiBold">Quiz de JavaScript aprovado!</ThemedText>
+                <ThemedText style={styles.activityTime}>2 horas atrás</ThemedText>
+              </View>
+            </View>
+          </View>
+          <View style={[styles.activityCard, { backgroundColor }]}>
+            <View style={styles.activityHeader}>
+              <Ionicons name="create" size={24} color="#667eea" />
+              <View style={styles.activityInfo}>
+                <ThemedText type="defaultSemiBold">Exercício de React publicado</ThemedText>
+                <ThemedText style={styles.activityTime}>1 dia atrás</ThemedText>
+              </View>
+            </View>
+          </View>
+        </Animated.View>
       </ScrollView>
     </ThemedView>
   );
@@ -176,148 +197,158 @@ export default function ExploreScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#ffffff',
   },
   header: {
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    marginBottom: 20,
+  },
+  headerWhite: {
+    backgroundColor: '#ffffff',
+    paddingTop: isSmallDevice ? 50 : 60,
+    paddingBottom: isSmallDevice ? 20 : 30,
+    paddingHorizontal: isSmallDevice ? 16 : 20,
+    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.1)',
+    elevation: 5,
+  },
+  headerGradient: {
+    paddingTop: isSmallDevice ? 50 : 60,
+    paddingBottom: isSmallDevice ? 20 : 30,
+    paddingHorizontal: isSmallDevice ? 16 : 20,
+  },
+  headerContent: {
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 8,
+    color: '#1a1a1a',
+    fontSize: isSmallDevice ? 24 : 28,
+    fontWeight: '700',
+    marginBottom: isSmallDevice ? 6 : 8,
+    textAlign: 'center',
+    letterSpacing: -0.5,
   },
   headerSubtitle: {
-    fontSize: 16,
-    opacity: 0.7,
+    color: '#666666',
+    fontSize: isSmallDevice ? 15 : 16,
+    textAlign: 'center',
   },
-  searchSection: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
+  contentContainer: {
+    paddingHorizontal: isSmallDevice ? 16 : 20,
+    marginBottom: isSmallDevice ? 20 : 30,
+    backgroundColor: '#ffffff',
   },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+  sectionTitle: {
+    fontSize: isSmallDevice ? 18 : 20,
+    marginBottom: isSmallDevice ? 12 : 16,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    letterSpacing: -0.5,
   },
-  searchInput: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-  },
-  searchButton: {
-    padding: 12,
-    borderRadius: 12,
-    margin: 4,
-  },
-  searchButtonText: {
-    fontSize: 16,
-  },
-  filterSection: {
-    paddingLeft: 20,
-    marginBottom: 20,
-  },
-  filterTag: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 12,
-    borderWidth: 1,
-  },
-  filterTagText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  professionalsSection: {
-    paddingHorizontal: 20,
-  },
-  professionalCard: {
-    marginBottom: 16,
-  },
-  cardContent: {
-    padding: 16,
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  avatarText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  basicInfo: {
-    flex: 1,
-  },
-  professionalName: {
-    fontSize: 16,
-    marginBottom: 4,
-  },
-  professionalRole: {
-    fontSize: 14,
-    opacity: 0.7,
-    marginBottom: 2,
-  },
-  company: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  connectBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  connectBtnText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  skillsContainer: {
+  contentGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  contentCard: {
+    width: isSmallDevice ? (width - 40) / 2 : (width - 50) / 2,
+    marginBottom: isSmallDevice ? 12 : 16,
+  },
+  cardTouchable: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    elevation: 4,
+    boxShadow: '0px 3px 8px rgba(0, 0, 0, 0.1)',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
+  },
+  cardContent: {
+    padding: isSmallDevice ? 16 : 20,
+    minHeight: isSmallDevice ? 140 : 160,
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+  },
+  cardIcon: {
+    width: isSmallDevice ? 48 : 56,
+    height: isSmallDevice ? 48 : 56,
+    borderRadius: isSmallDevice ? 24 : 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
     marginBottom: 12,
   },
-  skillTag: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginRight: 8,
-    marginBottom: 4,
+  cardTitle: {
+    color: '#1a1a1a',
+    fontSize: isSmallDevice ? 15 : 16,
+    fontWeight: '700',
+    marginBottom: isSmallDevice ? 6 : 8,
+    textAlign: 'center',
+    letterSpacing: -0.3,
   },
-  skillText: {
-    fontSize: 12,
-    fontWeight: '500',
+  cardDescription: {
+    color: '#666666',
+    fontSize: isSmallDevice ? 11 : 12,
+    textAlign: 'center',
+    lineHeight: isSmallDevice ? 15 : 16,
   },
-  additionalInfo: {
+  cardArrow: {
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  statsSection: {
+    paddingHorizontal: isSmallDevice ? 16 : 20,
+    marginBottom: isSmallDevice ? 20 : 30,
+  },
+  statsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
-  infoItem: {
+  statCard: {
+    flex: 1,
+    alignItems: 'center',
+    padding: isSmallDevice ? 12 : 16,
+    marginHorizontal: isSmallDevice ? 2 : 4,
+    borderRadius: 12,
+    elevation: 2,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.05)',
+  },
+  statNumber: {
+    fontSize: isSmallDevice ? 22 : 24,
+    fontWeight: 'bold',
+    marginBottom: isSmallDevice ? 3 : 4,
+  },
+  statLabel: {
+    fontSize: isSmallDevice ? 11 : 12,
+    opacity: 0.7,
+    textAlign: 'center',
+  },
+  recentSection: {
+    paddingHorizontal: isSmallDevice ? 16 : 20,
+    marginBottom: isSmallDevice ? 20 : 30,
+  },
+  activityCard: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    elevation: 2,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.05)',
+  },
+  activityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  activityInfo: {
+    marginLeft: 12,
     flex: 1,
   },
-  infoLabel: {
+  activityTime: {
     fontSize: 12,
-    opacity: 0.7,
+    opacity: 0.6,
+    marginTop: 2,
   },
 });
