@@ -212,3 +212,4 @@ app/
 **Desenvolvido com React Native + Expo**
 
 
+Projeto em desenvolvimento...
