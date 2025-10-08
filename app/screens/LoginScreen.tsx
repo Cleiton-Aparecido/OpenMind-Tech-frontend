@@ -1,9 +1,11 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Image,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -12,10 +14,18 @@ import {
 } from "react-native";
 
 type RootStackParamList = {
-  Login: undefined;
+  Login:
+    | undefined
+    | {
+        flash?: { type: "success" | "error"; title?: string; message?: string };
+      };
   ForgotPassword: undefined;
   Register: undefined;
-  Home: undefined; // por exemplo, se tiver uma tela Home
+  Home:
+    | {
+        flash?: { type: "success" | "error"; title?: string; message?: string };
+      }
+    | undefined;
 };
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<
@@ -25,12 +35,33 @@ type LoginScreenNavigationProp = NativeStackNavigationProp<
 
 type Props = {
   navigation: LoginScreenNavigationProp;
+  route: any;
 };
 
-export default function LoginScreen({ navigation }: Props) {
+export default function LoginScreen({ navigation, route }: Props) {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const [flash, setFlash] = useState<{
+    type: "success" | "error";
+    title?: string;
+    message?: string;
+  } | null>(null);
+
+  const baseURL = useMemo(() => {
+    if (Platform.OS === "android") return "http://10.0.2.2:3001";
+    return "http://localhost:3001";
+  }, []);
+
+  useEffect(() => {
+    const f = route?.params?.flash;
+    if (f) {
+      setFlash(f);
+
+      navigation.setParams({ flash: undefined });
+    }
+  }, [route?.params?.flash, navigation]);
 
   async function handleLogin() {
     if (!email || !senha) {
@@ -40,33 +71,45 @@ export default function LoginScreen({ navigation }: Props) {
 
     setLoading(true);
     try {
-      console.log("Enviando requisição de login...");
-      const response = await fetch("http://localhost:3001/auth/login", {
+      const response = await fetch(`${baseURL}/auth/login`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password: senha }),
       });
 
       if (!response.ok) {
-        throw new Error("Credenciais inválidas");
+        const raw = await response.text();
+        let msg: any = "Credenciais inválidas";
+        try {
+          const data = raw ? JSON.parse(raw) : {};
+          msg = data?.message || data?.error || raw || msg;
+          if (Array.isArray(msg)) msg = msg[0];
+        } catch {}
+        throw new Error(
+          typeof msg === "string" ? msg : "Credenciais inválidas"
+        );
       }
 
       const data = await response.json();
+      await AsyncStorage.setItem("userToken", data?.access_token ?? "");
 
-      console.log(data.access_token);
-
-      await AsyncStorage.setItem("userToken", data.access_token);
-
-      const token = await AsyncStorage.getItem("userToken");
-
-      console.log("token: " + token);
-
-      Alert.alert("Sucesso", "Login realizado!");
-      navigation.navigate("Home");
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: "Home",
+            params: {
+              flash: {
+                type: "success",
+                title: "Bem-vindo!",
+                message: "Login realizado com sucesso.",
+              },
+            },
+          } as any,
+        ],
+      });
     } catch (err: any) {
-      Alert.alert("Erro", err.message || "Falha no login");
+      Alert.alert("Erro", err?.message || "Falha no login");
     } finally {
       setLoading(false);
     }
@@ -82,6 +125,31 @@ export default function LoginScreen({ navigation }: Props) {
         />
         <Text style={styles.title}>Login</Text>
 
+        {/* Flash message (ex.: “Conta criada!” vindo do Register) */}
+        {!!flash && (
+          <View
+            style={[
+              styles.flashBox,
+              flash.type === "success"
+                ? styles.flashSuccess
+                : styles.flashError,
+            ]}
+          >
+            {!!flash.title && (
+              <Text style={styles.flashTitle}>{flash.title}</Text>
+            )}
+            {!!flash.message && (
+              <Text style={styles.flashText}>{flash.message}</Text>
+            )}
+            <TouchableOpacity
+              style={styles.flashClose}
+              onPress={() => setFlash(null)}
+            >
+              <Text style={styles.flashCloseText}>Fechar</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         <TextInput
           style={styles.input}
           placeholder="Email"
@@ -89,6 +157,7 @@ export default function LoginScreen({ navigation }: Props) {
           onChangeText={setEmail}
           keyboardType="email-address"
           autoCapitalize="none"
+          editable={!loading}
         />
 
         <TextInput
@@ -97,16 +166,19 @@ export default function LoginScreen({ navigation }: Props) {
           value={senha}
           onChangeText={setSenha}
           secureTextEntry
+          editable={!loading}
         />
 
         <TouchableOpacity
-          style={styles.button}
+          style={[styles.button, loading && { opacity: 0.7 }]}
           onPress={handleLogin}
           disabled={loading}
         >
-          <Text style={styles.buttonText}>
-            {loading ? "Entrando..." : "Entrar"}
-          </Text>
+          {loading ? (
+            <ActivityIndicator />
+          ) : (
+            <Text style={styles.buttonText}>Entrar</Text>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")}>
@@ -146,6 +218,21 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: "center",
   },
+
+  flashBox: {
+    width: "100%",
+    borderWidth: 1,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  flashSuccess: { borderColor: "#b3ffd4", backgroundColor: "#e6fff1" },
+  flashError: { borderColor: "#ffb3b3", backgroundColor: "#ffe6e6" },
+  flashTitle: { fontWeight: "700", marginBottom: 4 },
+  flashText: { color: "#2d2d2d" },
+  flashClose: { alignSelf: "flex-end", marginTop: 6 },
+  flashCloseText: { color: "#007bff", fontWeight: "600" },
+
   input: {
     borderWidth: 1,
     borderColor: "#ccc",
@@ -153,6 +240,7 @@ const styles = StyleSheet.create({
     width: "100%",
     borderRadius: 8,
     marginBottom: 12,
+    backgroundColor: "#fff",
   },
   button: {
     backgroundColor: "#007bff",
@@ -160,6 +248,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginTop: 12,
     width: "100%",
+    alignItems: "center",
   },
   buttonText: { color: "#fff", textAlign: "center", fontWeight: "bold" },
   link: { color: "#007bff", textAlign: "center", marginTop: 10 },
