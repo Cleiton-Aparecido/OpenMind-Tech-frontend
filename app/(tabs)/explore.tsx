@@ -1,16 +1,14 @@
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import { useThemeColor } from '@/hooks/useThemeColor';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef } from 'react';
 import {
-  Alert,
-  Animated,
-  Dimensions,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View
+    Alert,
+    Animated,
+    Dimensions,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -18,8 +16,6 @@ const isSmallDevice = width < 375;
 const isMediumDevice = width >= 375 && width < 414;
 
 export default function CreateScreen() {
-  const backgroundColor = useThemeColor({}, 'background');
-  const tintColor = useThemeColor({}, 'tint');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
@@ -81,16 +77,16 @@ export default function CreateScreen() {
   };
 
   return (
-    <ThemedView style={styles.container}>
+    <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <Animated.View style={[styles.header, { opacity: fadeAnim }]}>
           <View style={styles.headerWhite}>
             <View style={styles.headerContent}>
-              <ThemedText style={styles.headerTitle}>Criar Conteúdo</ThemedText>
-              <ThemedText style={styles.headerSubtitle}>
+              <Text style={styles.headerTitle}>Criar Conteúdo</Text>
+              <Text style={styles.headerSubtitle}>
                 Compartilhe seu conhecimento com a comunidade
-              </ThemedText>
+              </Text>
             </View>
           </View>
         </Animated.View>
@@ -100,9 +96,9 @@ export default function CreateScreen() {
           styles.contentContainer,
           { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
         ]}>
-          <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
+          <Text style={styles.sectionTitle}>
             🎯 Escolha o tipo de conteúdo
-          </ThemedText>
+          </Text>
           
           <View style={styles.contentGrid}>
             {contentTypes.map((item, index) => (
@@ -128,14 +124,14 @@ export default function CreateScreen() {
                 >
                   <View style={styles.cardContent}>
                     <View style={[styles.cardIcon, { backgroundColor: item.color }]}>
-                      <Ionicons name={item.icon as any} size={isSmallDevice ? 28 : 32} color="white" />
+                      <Ionicons name={item.icon as any} size={isSmallDevice ? 22 : 26} color="white" />
                     </View>
-                    <ThemedText style={styles.cardTitle}>{item.title}</ThemedText>
-                    <ThemedText style={styles.cardDescription}>
+                    <Text style={styles.cardTitle}>{item.title}</Text>
+                    <Text style={styles.cardDescription}>
                       {item.description}
-                    </ThemedText>
+                    </Text>
                     <View style={styles.cardArrow}>
-                      <Ionicons name="arrow-forward" size={20} color={item.color} />
+                      <Ionicons name="arrow-forward" size={18} color={item.color} />
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -146,51 +142,26 @@ export default function CreateScreen() {
 
         {/* Quick Stats */}
         <Animated.View style={[styles.statsSection, { opacity: fadeAnim }]}>
-          <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
+          <Text style={styles.sectionTitle}>
             📊 Suas Estatísticas
-          </ThemedText>
+          </Text>
           <View style={styles.statsGrid}>
-            <View style={[styles.statCard, { backgroundColor }]}>
-              <ThemedText style={[styles.statNumber, { color: tintColor }]}>12</ThemedText>
-              <ThemedText style={styles.statLabel}>Conteúdos Criados</ThemedText>
+            <View style={styles.statCard}>
+              <Text style={[styles.statNumber, { color: '#667eea' }]}>12</Text>
+              <Text style={styles.statLabel}>Conteúdos Criados</Text>
             </View>
-            <View style={[styles.statCard, { backgroundColor }]}>
-              <ThemedText style={[styles.statNumber, { color: '#f093fb' }]}>1.2k</ThemedText>
-              <ThemedText style={styles.statLabel}>Visualizações</ThemedText>
+            <View style={styles.statCard}>
+              <Text style={[styles.statNumber, { color: '#f093fb' }]}>1.2k</Text>
+              <Text style={styles.statLabel}>Visualizações</Text>
             </View>
-            <View style={[styles.statCard, { backgroundColor }]}>
-              <ThemedText style={[styles.statNumber, { color: '#43e97b' }]}>89%</ThemedText>
-              <ThemedText style={styles.statLabel}>Taxa de Acerto</ThemedText>
-            </View>
-          </View>
-        </Animated.View>
-
-        {/* Recent Activity */}
-        <Animated.View style={[styles.recentSection, { opacity: fadeAnim }]}>
-          <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>
-            🕒 Atividade Recente
-          </ThemedText>
-          <View style={[styles.activityCard, { backgroundColor }]}>
-            <View style={styles.activityHeader}>
-              <Ionicons name="trophy" size={24} color="#FFD700" />
-              <View style={styles.activityInfo}>
-                <ThemedText type="defaultSemiBold">Quiz de JavaScript aprovado!</ThemedText>
-                <ThemedText style={styles.activityTime}>2 horas atrás</ThemedText>
-              </View>
-            </View>
-          </View>
-          <View style={[styles.activityCard, { backgroundColor }]}>
-            <View style={styles.activityHeader}>
-              <Ionicons name="create" size={24} color="#667eea" />
-              <View style={styles.activityInfo}>
-                <ThemedText type="defaultSemiBold">Exercício de React publicado</ThemedText>
-                <ThemedText style={styles.activityTime}>1 dia atrás</ThemedText>
-              </View>
+            <View style={styles.statCard}>
+              <Text style={[styles.statNumber, { color: '#43e97b' }]}>89%</Text>
+              <Text style={styles.statLabel}>Taxa de Acerto</Text>
             </View>
           </View>
         </Animated.View>
       </ScrollView>
-    </ThemedView>
+    </View>
   );
 }
 
@@ -247,48 +218,52 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    gap: isSmallDevice ? 10 : 12,
   },
   contentCard: {
-    width: isSmallDevice ? (width - 40) / 2 : (width - 50) / 2,
-    marginBottom: isSmallDevice ? 12 : 16,
+    width: '48%',
+    marginBottom: isSmallDevice ? 8 : 10,
   },
   cardTouchable: {
     borderRadius: 16,
     overflow: 'hidden',
     elevation: 4,
-    boxShadow: '0px 3px 8px rgba(0, 0, 0, 0.1)',
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#f0f0f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   cardContent: {
-    padding: isSmallDevice ? 16 : 20,
-    minHeight: isSmallDevice ? 140 : 160,
+    padding: isSmallDevice ? 12 : 16,
+    minHeight: isSmallDevice ? 160 : 180,
     justifyContent: 'space-between',
     backgroundColor: '#ffffff',
   },
   cardIcon: {
-    width: isSmallDevice ? 48 : 56,
-    height: isSmallDevice ? 48 : 56,
-    borderRadius: isSmallDevice ? 24 : 28,
+    width: isSmallDevice ? 44 : 52,
+    height: isSmallDevice ? 44 : 52,
+    borderRadius: isSmallDevice ? 22 : 26,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
-    marginBottom: 12,
+    marginBottom: isSmallDevice ? 8 : 10,
   },
   cardTitle: {
     color: '#1a1a1a',
-    fontSize: isSmallDevice ? 15 : 16,
+    fontSize: isSmallDevice ? 13 : 15,
     fontWeight: '700',
-    marginBottom: isSmallDevice ? 6 : 8,
+    marginBottom: isSmallDevice ? 4 : 6,
     textAlign: 'center',
     letterSpacing: -0.3,
   },
   cardDescription: {
     color: '#666666',
-    fontSize: isSmallDevice ? 11 : 12,
+    fontSize: isSmallDevice ? 10 : 11,
     textAlign: 'center',
-    lineHeight: isSmallDevice ? 15 : 16,
+    lineHeight: isSmallDevice ? 14 : 15,
   },
   cardArrow: {
     alignItems: 'center',
@@ -309,10 +284,13 @@ const styles = StyleSheet.create({
     marginHorizontal: isSmallDevice ? 2 : 4,
     borderRadius: 12,
     elevation: 2,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#e9ecef',
-    boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.05)',
+    borderColor: '#e0e0e0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   statNumber: {
     fontSize: isSmallDevice ? 22 : 24,
@@ -321,34 +299,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: isSmallDevice ? 11 : 12,
-    opacity: 0.7,
+    color: '#666',
     textAlign: 'center',
-  },
-  recentSection: {
-    paddingHorizontal: isSmallDevice ? 16 : 20,
-    marginBottom: isSmallDevice ? 20 : 30,
-  },
-  activityCard: {
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    elevation: 2,
-    backgroundColor: '#f8f9fa',
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.05)',
-  },
-  activityHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  activityInfo: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  activityTime: {
-    fontSize: 12,
-    opacity: 0.6,
-    marginTop: 2,
   },
 });
