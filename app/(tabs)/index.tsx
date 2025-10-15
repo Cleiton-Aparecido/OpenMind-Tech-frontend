@@ -1,6 +1,4 @@
 import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import { useThemeColor } from '@/hooks/useThemeColor';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef } from 'react';
 import { Animated, Dimensions, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -9,10 +7,7 @@ const { width, height } = Dimensions.get('window');
 const isSmallDevice = width < 375;
 const isMediumDevice = width >= 375 && width < 414;
 const isLargeDevice = width >= 414;
-
 export default function HomeScreen() {
-  const backgroundColor = useThemeColor({}, 'background');
-  const tintColor = useThemeColor({}, 'tint');
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
@@ -37,7 +32,7 @@ export default function HomeScreen() {
     ]).start();
   }, []);
 
-  // Dados do usuário (mock)
+  // Dados do usuário (mockado)
   const userData = {
     name: 'João Silva',
     points: 2850,
@@ -73,7 +68,7 @@ export default function HomeScreen() {
   ];
 
   return (
-    <ThemedView style={styles.container}>
+    <View style={styles.container}>
       <ScrollView 
         showsVerticalScrollIndicator={false}
         style={styles.scrollView}
@@ -82,7 +77,7 @@ export default function HomeScreen() {
         {/* Header com Profile do Usuário */}
         <Animated.View style={[styles.animatedContainer, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
           <View style={styles.headerWhite}>
-            <ThemedView style={[styles.headerContent, { backgroundColor: 'transparent' }]}>
+            <View style={[styles.headerContent, { backgroundColor: 'transparent' }]}>
               <View style={styles.profileSection}>
                 <View style={styles.avatarContainer}>
                   <ThemedText style={styles.avatarText}>👨‍🎓</ThemedText>
@@ -110,7 +105,7 @@ export default function HomeScreen() {
                   <ThemedText style={styles.statLabel}>Sequência</ThemedText>
                 </Animated.View>
               </View>
-            </ThemedView>
+            </View>
           </View>
         </Animated.View>
 
@@ -233,7 +228,7 @@ export default function HomeScreen() {
           </View>
         </Animated.View>
       </ScrollView>
-    </ThemedView>
+    </View>
   );
 }
 
