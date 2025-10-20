@@ -1,7 +1,11 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   Image,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -10,9 +14,18 @@ import {
 } from "react-native";
 
 type RootStackParamList = {
-  Login: undefined;
+  Login:
+    | undefined
+    | {
+        flash?: { type: "success" | "error"; title?: string; message?: string };
+      };
   ForgotPassword: undefined;
   Register: undefined;
+  Home:
+    | {
+        flash?: { type: "success" | "error"; title?: string; message?: string };
+      }
+    | undefined;
 };
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<
@@ -22,22 +35,120 @@ type LoginScreenNavigationProp = NativeStackNavigationProp<
 
 type Props = {
   navigation: LoginScreenNavigationProp;
+  route: any;
 };
 
-export default function LoginScreen({ navigation }: Props) {
+export default function LoginScreen({ navigation, route }: Props) {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const [flash, setFlash] = useState<{
+    type: "success" | "error";
+    title?: string;
+    message?: string;
+  } | null>(null);
+
+  const baseURL = useMemo(() => {
+    if (Platform.OS === "android") return "http://10.0.2.2:3001";
+    return "http://localhost:3001";
+  }, []);
+
+  useEffect(() => {
+    const f = route?.params?.flash;
+    if (f) {
+      setFlash(f);
+
+      navigation.setParams({ flash: undefined });
+    }
+  }, [route?.params?.flash, navigation]);
+
+  async function handleLogin() {
+    if (!email || !senha) {
+      Alert.alert("Erro", "Preencha e-mail e senha.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${baseURL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password: senha }),
+      });
+
+      if (!response.ok) {
+        const raw = await response.text();
+        let msg: any = "Credenciais inválidas";
+        try {
+          const data = raw ? JSON.parse(raw) : {};
+          msg = data?.message || data?.error || raw || msg;
+          if (Array.isArray(msg)) msg = msg[0];
+        } catch {}
+        throw new Error(
+          typeof msg === "string" ? msg : "Credenciais inválidas"
+        );
+      }
+
+      const data = await response.json();
+      await AsyncStorage.setItem("userToken", data?.access_token ?? "");
+
+      navigation.reset({
+        index: 0,
+        routes: [
+          {
+            name: "Home",
+            params: {
+              flash: {
+                type: "success",
+                title: "Bem-vindo!",
+                message: "Login realizado com sucesso.",
+              },
+            },
+          } as any,
+        ],
+      });
+    } catch (err: any) {
+      Alert.alert("Erro", err?.message || "Falha no login");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <View style={styles.container}>
-      {/* 👇 Exemplo com imagem local */}
       <View style={styles.menu}>
         <Image
-          source={require("../images/logo.jpeg")} // coloque sua imagem em assets
+          source={require("../images/logo.jpeg")}
           style={styles.logo}
           resizeMode="contain"
         />
         <Text style={styles.title}>Login</Text>
+
+        {/* Flash message (ex.: “Conta criada!” vindo do Register) */}
+        {!!flash && (
+          <View
+            style={[
+              styles.flashBox,
+              flash.type === "success"
+                ? styles.flashSuccess
+                : styles.flashError,
+            ]}
+          >
+            {!!flash.title && (
+              <Text style={styles.flashTitle}>{flash.title}</Text>
+            )}
+            {!!flash.message && (
+              <Text style={styles.flashText}>{flash.message}</Text>
+            )}
+            <TouchableOpacity
+              style={styles.flashClose}
+              onPress={() => setFlash(null)}
+            >
+              <Text style={styles.flashCloseText}>Fechar</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <TextInput
           style={styles.input}
@@ -45,6 +156,8 @@ export default function LoginScreen({ navigation }: Props) {
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
+          autoCapitalize="none"
+          editable={!loading}
         />
 
         <TextInput
@@ -53,10 +166,19 @@ export default function LoginScreen({ navigation }: Props) {
           value={senha}
           onChangeText={setSenha}
           secureTextEntry
+          editable={!loading}
         />
 
-        <TouchableOpacity style={styles.button}>
-          <Text style={styles.buttonText}>Entrar</Text>
+        <TouchableOpacity
+          style={[styles.button, loading && { opacity: 0.7 }]}
+          onPress={handleLogin}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator />
+          ) : (
+            <Text style={styles.buttonText}>Entrar</Text>
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")}>
@@ -71,49 +193,10 @@ export default function LoginScreen({ navigation }: Props) {
   );
 }
 
-// const styles = StyleSheet.create({
-//   container: {
-//     // flex: 1,
-//     // justifyContent: "center",
-//     // paddingLeft: 20,
-//     // paddingRight: 20,
-//     backgroundColor: "#fff",
-//   },
-//   menu: {},
-//   title: {
-//     fontSize: 28,
-//     fontWeight: "bold",
-//     marginBottom: 20,
-//     textAlign: "center",
-//   },
-//   logo: {
-//     height: 400,
-//     alignSelf: "center",
-//     marginBottom: 0,
-//   },
-//   input: {
-//     borderWidth: 1,
-//     borderColor: "#ccc",
-//     padding: 12,
-//     borderRadius: 8,
-//     marginBottom: 12,
-//   },
-//   button: {
-//     backgroundColor: "#007bff",
-//     padding: 15,
-//     borderRadius: 8,
-//     marginBottom: 10,
-//   },
-//   buttonText: { color: "#fff", textAlign: "center", fontWeight: "bold" },
-//   link: { color: "#007bff", textAlign: "center", marginTop: 10 },
-// });
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "flex-start",
-    alignContent: "flex-start",
-    // Adicionado para centralizar os itens horizontalmente
     alignItems: "center",
     backgroundColor: "#fff",
     width: "100%",
@@ -121,14 +204,12 @@ const styles = StyleSheet.create({
   menu: {
     flex: 1,
     justifyContent: "flex-start",
-    // Adicionado para centralizar os itens horizontalmente
     alignItems: "center",
     backgroundColor: "#fff",
-
     width: "80%",
   },
   logo: {
-    maxHeight: 300, // Diminuí um pouco para telas menores
+    maxHeight: 300,
     width: "80%",
   },
   title: {
@@ -137,40 +218,38 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     textAlign: "center",
   },
+
+  flashBox: {
+    width: "100%",
+    borderWidth: 1,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  flashSuccess: { borderColor: "#b3ffd4", backgroundColor: "#e6fff1" },
+  flashError: { borderColor: "#ffb3b3", backgroundColor: "#ffe6e6" },
+  flashTitle: { fontWeight: "700", marginBottom: 4 },
+  flashText: { color: "#2d2d2d" },
+  flashClose: { alignSelf: "flex-end", marginTop: 6 },
+  flashCloseText: { color: "#007bff", fontWeight: "600" },
+
   input: {
     borderWidth: 1,
     borderColor: "#ccc",
     padding: 12,
-    // Alterado para largura de 100% para ser responsivo
     width: "100%",
     borderRadius: 8,
-    marginBottom: 12, // Movido margin para cá para ser consistente
-  },
-
-  errorText: {
-    color: "#d00",
-    alignSelf: "flex-start", // Alinha o texto de erro à esquerda
+    marginBottom: 12,
+    backgroundColor: "#fff",
   },
   button: {
     backgroundColor: "#007bff",
     padding: 15,
     borderRadius: 8,
     marginTop: 12,
-    // Alterado para largura de 100% para consistência
     width: "100%",
+    alignItems: "center",
   },
   buttonText: { color: "#fff", textAlign: "center", fontWeight: "bold" },
-  secondaryButton: {
-    alignSelf: "flex-start",
-    borderWidth: 1,
-    borderColor: "#007bff",
-    paddingVertical: 8,
-    width: 40,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-  },
-  secondaryButtonText: { color: "#007bff", fontWeight: "600" },
-
-  // buttonText: { color: "#fff", textAlign: "center", fontWeight: "bold" },
   link: { color: "#007bff", textAlign: "center", marginTop: 10 },
 });
