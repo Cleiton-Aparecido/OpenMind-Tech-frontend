@@ -1,11 +1,14 @@
+// app/screens/LoginScreen.tsx
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -13,32 +16,7 @@ import {
   View,
 } from "react-native";
 
-type RootStackParamList = {
-  Login:
-    | undefined
-    | {
-        flash?: { type: "success" | "error"; title?: string; message?: string };
-      };
-  ForgotPassword: undefined;
-  Register: undefined;
-  Home:
-    | {
-        flash?: { type: "success" | "error"; title?: string; message?: string };
-      }
-    | undefined;
-};
-
-type LoginScreenNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  "Login"
->;
-
-type Props = {
-  navigation: LoginScreenNavigationProp;
-  route: any;
-};
-
-export default function LoginScreen({ navigation, route }: Props) {
+export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [loading, setLoading] = useState(false);
@@ -49,19 +27,26 @@ export default function LoginScreen({ navigation, route }: Props) {
     message?: string;
   } | null>(null);
 
-  const baseURL = useMemo(() => {
-    if (Platform.OS === "android") return "http://10.0.2.2:3001";
-    return "http://localhost:3001";
-  }, []);
+  const { flashType, flashTitle, flashMessage } = useLocalSearchParams<{
+    flashType?: "success" | "error";
+    flashTitle?: string;
+    flashMessage?: string;
+  }>();
 
   useEffect(() => {
-    const f = route?.params?.flash;
-    if (f) {
-      setFlash(f);
-
-      navigation.setParams({ flash: undefined });
+    if (flashType || flashTitle || flashMessage) {
+      setFlash({
+        type: (flashType as any) || "success",
+        title: flashTitle,
+        message: flashMessage,
+      });
     }
-  }, [route?.params?.flash, navigation]);
+  }, [flashType, flashTitle, flashMessage]);
+
+  const baseURL = useMemo(() => {
+    if (Platform.OS === "android") return "http://10.0.2.2:3001";
+    return "http://localhost:3010";
+  }, []);
 
   async function handleLogin() {
     if (!email || !senha) {
@@ -93,20 +78,13 @@ export default function LoginScreen({ navigation, route }: Props) {
       const data = await response.json();
       await AsyncStorage.setItem("userToken", data?.access_token ?? "");
 
-      navigation.reset({
-        index: 0,
-        routes: [
-          {
-            name: "Home",
-            params: {
-              flash: {
-                type: "success",
-                title: "Bem-vindo!",
-                message: "Login realizado com sucesso.",
-              },
-            },
-          } as any,
-        ],
+      router.replace({
+        pathname: "/(tabs)",
+        params: {
+          flashType: "success",
+          flashTitle: "Bem-vindo!",
+          flashMessage: "Login realizado com sucesso.",
+        },
       });
     } catch (err: any) {
       Alert.alert("Erro", err?.message || "Falha no login");
@@ -116,109 +94,114 @@ export default function LoginScreen({ navigation, route }: Props) {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.menu}>
-        <Image
-          source={require("../images/logo.jpeg")}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-        <Text style={styles.title}>Login</Text>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.content}>
+          <Image
+            source={require("../images/logo.jpeg")}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <Text style={styles.title}>Login</Text>
 
-        {/* Flash message (ex.: “Conta criada!” vindo do Register) */}
-        {!!flash && (
-          <View
-            style={[
-              styles.flashBox,
-              flash.type === "success"
-                ? styles.flashSuccess
-                : styles.flashError,
-            ]}
-          >
-            {!!flash.title && (
-              <Text style={styles.flashTitle}>{flash.title}</Text>
-            )}
-            {!!flash.message && (
-              <Text style={styles.flashText}>{flash.message}</Text>
-            )}
-            <TouchableOpacity
-              style={styles.flashClose}
-              onPress={() => setFlash(null)}
+          {!!flash && (
+            <View
+              style={[
+                styles.flashBox,
+                flash.type === "success"
+                  ? styles.flashSuccess
+                  : styles.flashError,
+              ]}
             >
-              <Text style={styles.flashCloseText}>Fechar</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          editable={!loading}
-        />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Senha"
-          value={senha}
-          onChangeText={setSenha}
-          secureTextEntry
-          editable={!loading}
-        />
-
-        <TouchableOpacity
-          style={[styles.button, loading && { opacity: 0.7 }]}
-          onPress={handleLogin}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator />
-          ) : (
-            <Text style={styles.buttonText}>Entrar</Text>
+              {!!flash.title && (
+                <Text style={styles.flashTitle}>{flash.title}</Text>
+              )}
+              {!!flash.message && (
+                <Text style={styles.flashText}>{flash.message}</Text>
+              )}
+              <TouchableOpacity
+                style={styles.flashClose}
+                onPress={() => setFlash(null)}
+              >
+                <Text style={styles.flashCloseText}>Fechar</Text>
+              </TouchableOpacity>
+            </View>
           )}
-        </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => navigation.navigate("ForgotPassword")}>
-          <Text style={styles.link}>Esqueci minha senha</Text>
-        </TouchableOpacity>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            editable={!loading}
+            returnKeyType="next"
+          />
 
-        <TouchableOpacity onPress={() => navigation.navigate("Register")}>
-          <Text style={styles.link}>Criar conta</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+          <TextInput
+            style={styles.input}
+            placeholder="Senha"
+            value={senha}
+            onChangeText={setSenha}
+            secureTextEntry
+            editable={!loading}
+            returnKeyType="done"
+          />
+
+          <TouchableOpacity
+            style={[styles.button, loading && { opacity: 0.7 }]}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator />
+            ) : (
+              <Text style={styles.buttonText}>Entrar</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => router.push("/forgot-password")}>
+            <Text style={styles.link}>Esqueci minha senha</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => router.push("/register")}>
+            <Text style={styles.link}>Criar conta</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "flex-start",
-    alignItems: "center",
-    backgroundColor: "#fff",
+  container: { flex: 1, backgroundColor: "#fff" },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+  },
+  content: {
+    flexGrow: 1,
+    maxWidth: 520,
     width: "100%",
+    alignSelf: "center",
+    alignItems: "stretch",
   },
-  menu: {
-    flex: 1,
-    justifyContent: "flex-start",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    width: "80%",
-  },
-  logo: {
-    maxHeight: 300,
-    width: "80%",
-  },
+  logo: { width: "100%", height: undefined, aspectRatio: 3, marginBottom: 8 },
   title: {
     fontSize: 28,
     fontWeight: "bold",
-    marginBottom: 20,
+    marginBottom: 0,
     textAlign: "center",
   },
-
   flashBox: {
     width: "100%",
     borderWidth: 1,
@@ -232,7 +215,6 @@ const styles = StyleSheet.create({
   flashText: { color: "#2d2d2d" },
   flashClose: { alignSelf: "flex-end", marginTop: 6 },
   flashCloseText: { color: "#007bff", fontWeight: "600" },
-
   input: {
     borderWidth: 1,
     borderColor: "#ccc",
