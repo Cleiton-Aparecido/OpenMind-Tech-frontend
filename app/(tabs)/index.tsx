@@ -6,6 +6,7 @@ const { width, height } = Dimensions.get('window');
 const isSmallDevice = width < 375;
 const isMediumDevice = width >= 375 && width < 414;
 const isLargeDevice = width >= 414;
+
 export default function HomeScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
@@ -56,11 +57,10 @@ export default function HomeScreen() {
     { icon: 'library', title: 'Tópicos', color: '#43e97b', route: '/topics' },
   ];
 
-// O componente exporta APENAS o navegador, SEM o <NavigationContainer>
-export default function AuthStack() {
+  // Testar a alteração do authstacl
   return (
     <View style={styles.container}>
-      <ScrollView 
+      <ScrollView
         showsVerticalScrollIndicator={false}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -81,7 +81,7 @@ export default function AuthStack() {
                   <Ionicons name="notifications" size={24} color="#667eea" />
                 </TouchableOpacity>
               </View>
-              
+
               <View style={styles.statsRow}>
                 <Animated.View style={[styles.statCard, { transform: [{ scale: scaleAnim }] }]}>
                   <Text style={styles.statNumber}>{userData.points.toLocaleString()}</Text>
@@ -100,7 +100,6 @@ export default function AuthStack() {
           </View>
         </Animated.View>
 
-        {/* Ações Rápidas */}
         <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
           <Text style={styles.sectionTitle}>🚀 Ações Rápidas</Text>
           <View style={styles.quickActionsGrid}>
@@ -117,7 +116,6 @@ export default function AuthStack() {
           </View>
         </Animated.View>
 
-        {/* Categories Section */}
         <Animated.View style={[styles.section, { opacity: fadeAnim }]}>
           <Text style={styles.sectionTitle}>📚 Áreas de Estudo</Text>
           <View style={styles.categoriesGrid}>
@@ -135,7 +133,6 @@ export default function AuthStack() {
           </View>
         </Animated.View>
 
-        {/* Call to Action */}
         <Animated.View style={[styles.ctaSection, { opacity: fadeAnim }]}>
           <View style={styles.ctaContent}>
             <Text style={styles.ctaTitle}>Continue Aprendendo!</Text>
