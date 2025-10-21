@@ -56,6 +56,8 @@ export default function HomeScreen() {
     { icon: 'library', title: 'Tópicos', color: '#43e97b', route: '/topics' },
   ];
 
+// O componente exporta APENAS o navegador, SEM o <NavigationContainer>
+export default function AuthStack() {
   return (
     <View style={styles.container}>
       <ScrollView 
