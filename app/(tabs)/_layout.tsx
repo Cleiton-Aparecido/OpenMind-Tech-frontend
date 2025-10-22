@@ -1,27 +1,11 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
+// app/(tabs)/_layout.tsx
+import { Tabs } from "expo-router";
 
-import CustomTabBar from '@/components/CustomTabBar';
-
-export default function TabLayout() {
+export default function TabsLayout() {
   return (
-    <Tabs
-      tabBar={(props) => <CustomTabBar {...props} />}
-      screenOptions={{
-        headerShown: false,
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Criar',
-        }}
-      />
+    <Tabs screenOptions={{ headerShown: true }}>
+      <Tabs.Screen name="index" options={{ title: "Home" }} />
+      <Tabs.Screen name="explore" options={{ title: "Explore" }} />
     </Tabs>
   );
 }

@@ -1,10 +1,14 @@
+// app/screens/RegisterScreen.tsx
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { router } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -43,7 +47,7 @@ type ApiInfo = {
   type: "error" | "success";
 };
 
-export default function RegisterScreen({ navigation }: any) {
+export default function RegisterScreen() {
   const [name, setName] = useState("");
   const [senha, setSenha] = useState("");
   const [email, setEmail] = useState("");
@@ -61,7 +65,7 @@ export default function RegisterScreen({ navigation }: any) {
 
   const baseURL = useMemo(() => {
     if (Platform.OS === "android") return "http://10.0.2.2:3001";
-    return "http://localhost:3001";
+    return "http://localhost:3010";
   }, []);
 
   const validateAndNormalizeTextDate = () => {
@@ -118,7 +122,6 @@ export default function RegisterScreen({ navigation }: any) {
         : "Informe um e-mail válido (ex.: nome@dominio.com).";
       next.senha =
         s.length >= 6 ? null : "A senha deve ter pelo menos 6 caracteres.";
-
       return next;
     },
     [name, email, senha, errors]
@@ -132,9 +135,7 @@ export default function RegisterScreen({ navigation }: any) {
 
   const handleSubmit = async () => {
     setTouched({ name: true, email: true, senha: true });
-
     validateAndNormalizeTextDate();
-
     const curErrors = validate();
     setErrors(curErrors);
     if (curErrors.name || curErrors.email || curErrors.senha) {
@@ -156,7 +157,6 @@ export default function RegisterScreen({ navigation }: any) {
       const resp = await fetch(`${baseURL}/users`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-
         body: JSON.stringify({
           email: email.trim().toLowerCase(),
           name: name.trim(),
@@ -183,13 +183,11 @@ export default function RegisterScreen({ navigation }: any) {
           raw ||
           "Não foi possível criar o usuário.";
         if (Array.isArray(msg)) msg = msg[0];
-
         if (resp.status === 409) msg = msg || "E-mail já cadastrado.";
         else if (resp.status === 400)
           msg = msg || "Dados inválidos. Verifique os campos.";
         else if (resp.status >= 500)
           msg = msg || "Falha no servidor. Tente mais tarde.";
-
         setApiInfo({
           type: "error",
           status: resp.status,
@@ -209,11 +207,12 @@ export default function RegisterScreen({ navigation }: any) {
         requestId,
       });
 
-      navigation.replace("Login", {
-        flash: {
-          type: "success",
-          title: "Conta criada!",
-          message: "Faça login para começar.",
+      router.replace({
+        pathname: "/",
+        params: {
+          flashType: "success",
+          flashTitle: "Conta criada!",
+          flashMessage: "Faça login para começar.",
         },
       });
     } catch (err: any) {
@@ -233,195 +232,192 @@ export default function RegisterScreen({ navigation }: any) {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.menu}>
-        <Image
-          source={require("../images/logo.jpeg")}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.content}>
+          <Image
+            source={require("../images/logo.jpeg")}
+            style={styles.logo}
+            resizeMode="contain"
+          />
 
-        <Text style={styles.title}>Criar Usuário</Text>
+          <Text style={styles.title}>Criar Usuário</Text>
 
-        {/* Regras rápidas para orientar o usuário */}
-        <View style={styles.rulesBox}>
-          <Text style={styles.rulesItem}>
-            • Preencha todos os campos obrigatórios.
-          </Text>
-          <Text style={styles.rulesItem}>
-            • E-mail válido (ex.: nome@dominio.com).
-          </Text>
-          <Text style={styles.rulesItem}>• Senha com 6+ caracteres.</Text>
-        </View>
+          <View style={styles.rulesBox}>
+            <Text style={styles.rulesItem}>
+              • Preencha todos os campos obrigatórios.
+            </Text>
+            <Text style={styles.rulesItem}>
+              • E-mail válido (ex.: nome@dominio.com).
+            </Text>
+            <Text style={styles.rulesItem}>• Senha com 6+ caracteres.</Text>
+          </View>
 
-        {/* NOME */}
-        <TextInput
-          style={[
-            styles.input,
-            touched.name && errors.name && styles.inputError,
-          ]}
-          placeholder="Nome completo *"
-          value={name}
-          onChangeText={(v) => {
-            setName(v);
-            setTouched((t) => ({ ...t, name: true }));
-          }}
-          autoCapitalize="words"
-          returnKeyType="next"
-          editable={!loading}
-        />
-        {touched.name && errors.name ? (
-          <Text style={styles.errorText}>{errors.name}</Text>
-        ) : (
-          <Text style={styles.helperText}>Como deseja ser chamado.</Text>
-        )}
-
-        {/* EMAIL */}
-        <TextInput
-          style={[
-            styles.input,
-            touched.email && errors.email && styles.inputError,
-          ]}
-          placeholder="E-mail *"
-          value={email}
-          onChangeText={(v) => {
-            setEmail(v);
-            setTouched((t) => ({ ...t, email: true }));
-          }}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          returnKeyType="next"
-          editable={!loading}
-        />
-        {touched.email && errors.email ? (
-          <Text style={styles.errorText}>{errors.email}</Text>
-        ) : (
-          <Text style={styles.helperText}>Usaremos para seu acesso.</Text>
-        )}
-
-        {/* SENHA */}
-        <View
-          style={[
-            styles.input,
-            styles.inputRow,
-            touched.senha && errors.senha && styles.inputError,
-          ]}
-        >
           <TextInput
-            style={{ flex: 1 }}
-            placeholder="Senha *"
-            value={senha}
+            style={[
+              styles.input,
+              touched.name && errors.name && styles.inputError,
+            ]}
+            placeholder="Nome completo *"
+            value={name}
             onChangeText={(v) => {
-              setSenha(v);
-              setTouched((t) => ({ ...t, senha: true }));
+              setName(v);
+              setTouched((t) => ({ ...t, name: true }));
             }}
-            secureTextEntry={!showPassword}
-            returnKeyType="done"
+            autoCapitalize="words"
+            returnKeyType="next"
             editable={!loading}
           />
-          <Pressable onPress={() => setShowPassword((p) => !p)} hitSlop={8}>
-            <Text style={styles.togglePwd}>
-              {showPassword ? "Ocultar" : "Mostrar"}
-            </Text>
-          </Pressable>
-        </View>
-        {touched.senha && errors.senha ? (
-          <Text style={styles.errorText}>{errors.senha}</Text>
-        ) : (
-          <Text style={styles.helperText}>Mínimo de 6 caracteres.</Text>
-        )}
+          {touched.name && errors.name ? (
+            <Text style={styles.errorText}>{errors.name}</Text>
+          ) : (
+            <Text style={styles.helperText}>Como deseja ser chamado.</Text>
+          )}
 
-        {/* DATA (opcional – não enviada ao backend por enquanto) */}
-        {showPicker && (
-          <DateTimePicker
-            value={birthDate || new Date(2000, 0, 1)}
-            mode="date"
-            display={Platform.OS === "ios" ? "spinner" : "default"}
-            onChange={handlePickerChange}
-            minimumDate={MIN_DATE}
-            maximumDate={MAX_DATE}
+          <TextInput
+            style={[
+              styles.input,
+              touched.email && errors.email && styles.inputError,
+            ]}
+            placeholder="E-mail *"
+            value={email}
+            onChangeText={(v) => {
+              setEmail(v);
+              setTouched((t) => ({ ...t, email: true }));
+            }}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            returnKeyType="next"
+            editable={!loading}
           />
-        )}
-        {!!dateError && <Text style={styles.errorText}>{dateError}</Text>}
+          {touched.email && errors.email ? (
+            <Text style={styles.errorText}>{errors.email}</Text>
+          ) : (
+            <Text style={styles.helperText}>Usaremos para seu acesso.</Text>
+          )}
 
-        {/* Banner com retorno da API */}
-        {!!apiInfo && (
           <View
             style={[
-              styles.feedbackBox,
-              apiInfo.type === "error"
-                ? styles.feedbackError
-                : styles.feedbackSuccess,
+              styles.input,
+              styles.inputRow,
+              touched.senha && errors.senha && styles.inputError,
             ]}
           >
-            <Text style={styles.feedbackTitle}>
-              {apiInfo.type === "error" ? "Algo deu errado" : "Tudo certo"}
-              {typeof apiInfo.status === "number" ? ` • ${apiInfo.status}` : ""}
-            </Text>
-            {!!apiInfo.message && (
-              <Text style={styles.feedbackText}>{apiInfo.message}</Text>
-            )}
-            {!!apiInfo.requestId && (
-              <Text style={styles.feedbackMeta}>
-                Req ID: {apiInfo.requestId}
+            <TextInput
+              style={{ flex: 1 }}
+              placeholder="Senha *"
+              value={senha}
+              onChangeText={(v) => {
+                setSenha(v);
+                setTouched((t) => ({ ...t, senha: true }));
+              }}
+              secureTextEntry={!showPassword}
+              returnKeyType="done"
+              editable={!loading}
+            />
+            <Pressable onPress={() => setShowPassword((p) => !p)} hitSlop={8}>
+              <Text style={styles.togglePwd}>
+                {showPassword ? "Ocultar" : "Mostrar"}
+              </Text>
+            </Pressable>
+          </View>
+          {touched.senha && errors.senha ? (
+            <Text style={styles.errorText}>{errors.senha}</Text>
+          ) : (
+            <Text style={styles.helperText}>Mínimo de 6 caracteres.</Text>
+          )}
+
+          {showPicker && (
+            <DateTimePicker
+              value={birthDate || new Date(2000, 0, 1)}
+              mode="date"
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={handlePickerChange}
+              minimumDate={MIN_DATE}
+              maximumDate={MAX_DATE}
+            />
+          )}
+          {!!dateError && <Text style={styles.errorText}>{dateError}</Text>}
+
+          {!!apiInfo && (
+            <View
+              style={[
+                styles.feedbackBox,
+                apiInfo.type === "error"
+                  ? styles.feedbackError
+                  : styles.feedbackSuccess,
+              ]}
+            >
+              <Text style={styles.feedbackTitle}>
+                {apiInfo.type === "error" ? "Algo deu errado" : "Tudo certo"}
+                {typeof apiInfo.status === "number"
+                  ? ` • ${apiInfo.status}`
+                  : ""}
+              </Text>
+              {!!apiInfo.message && (
+                <Text style={styles.feedbackText}>{apiInfo.message}</Text>
+              )}
+              {!!apiInfo.requestId && (
+                <Text style={styles.feedbackMeta}>
+                  Req ID: {apiInfo.requestId}
+                </Text>
+              )}
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[styles.button, (loading || !formValid) && { opacity: 0.6 }]}
+            onPress={handleSubmit}
+            disabled={loading || !formValid}
+          >
+            {loading ? (
+              <ActivityIndicator />
+            ) : (
+              <Text style={styles.buttonText}>
+                {formValid ? "Criar conta" : "Preencha os campos"}
               </Text>
             )}
-          </View>
-        )}
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.button, (loading || !formValid) && { opacity: 0.6 }]}
-          onPress={handleSubmit}
-          disabled={loading || !formValid}
-        >
-          {loading ? (
-            <ActivityIndicator />
-          ) : (
-            <Text style={styles.buttonText}>
-              {formValid ? "Criar conta" : "Preencha os campos"}
+          <TouchableOpacity
+            style={styles.secondaryAction}
+            onPress={() => router.replace("/")}
+            disabled={loading}
+          >
+            <Text style={styles.secondaryActionText}>
+              Já tenho conta • Ir para Login
             </Text>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.secondaryAction}
-          onPress={() => navigation.replace("Login")}
-          disabled={loading}
-        >
-          <Text style={styles.secondaryActionText}>
-            Já tenho conta • Ir para Login
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "flex-start",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    width: "100%",
-  },
-  menu: {
-    flex: 1,
-    justifyContent: "flex-start",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    width: "85%",
+  container: { flex: 1, backgroundColor: "#fff" },
+  scrollContent: { flexGrow: 1, paddingHorizontal: 24, paddingVertical: 16 },
+  content: {
+    flexGrow: 1,
     maxWidth: 520,
-    paddingTop: 12,
+    width: "100%",
+    alignSelf: "center",
+    alignItems: "stretch",
   },
-  logo: { maxHeight: 220, width: "70%", marginBottom: 8 },
+  logo: { width: "100%", height: undefined, aspectRatio: 3, marginBottom: 8 },
   title: {
     fontSize: 28,
     fontWeight: "bold",
     marginBottom: 10,
     textAlign: "center",
   },
-
   rulesBox: {
     width: "100%",
     backgroundColor: "#f6f8ff",
@@ -483,6 +479,6 @@ const styles = StyleSheet.create({
   buttonText: { color: "#fff", textAlign: "center", fontWeight: "bold" },
   togglePwd: { color: "#007bff", fontWeight: "600" },
 
-  secondaryAction: { marginTop: 14 },
+  secondaryAction: { marginTop: 14, marginBottom: 8 },
   secondaryActionText: { color: "#007bff", fontWeight: "600" },
 });
