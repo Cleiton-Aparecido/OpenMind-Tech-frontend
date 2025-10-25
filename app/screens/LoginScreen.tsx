@@ -13,13 +13,8 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
-
-const { width, height } = Dimensions.get('window');
-const isSmallDevice = width < 375;
-const isMediumDevice = width >= 375 && width < 414;
-const isShortDevice = height < 700;
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
