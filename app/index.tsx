@@ -1,14 +1,36 @@
-// app/index.tsx
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import React, { useEffect } from "react";
+import { Redirect } from "expo-router";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Text, View } from "react-native";
 import LoginScreen from "./screens/LoginScreen";
 
 export default function Index() {
+  const [checking, setChecking] = useState(true);
+  const [hasToken, setHasToken] = useState(false);
+
   useEffect(() => {
-    // Garante que, a cada reinício, não exista sessão persistida
-    AsyncStorage.removeItem("userToken").catch(() => {});
+    (async () => {
+      try {
+        const token = await AsyncStorage.getItem("userToken");
+        setHasToken(!!token);
+      } finally {
+        setChecking(false);
+      }
+    })();
   }, []);
 
-  // Não redireciona mais para (tabs). Sempre mostra o Login.
+  if (checking) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+        <ActivityIndicator />
+        <Text style={{ marginTop: 8 }}>Carregando…</Text>
+      </View>
+    );
+  }
+
+  if (hasToken) {
+    return <Redirect href="/(tabs)" />;
+  }
+
   return <LoginScreen />;
 }

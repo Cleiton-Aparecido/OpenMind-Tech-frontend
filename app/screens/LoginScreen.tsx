@@ -1,6 +1,5 @@
-// app/screens/LoginScreen.tsx
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -171,7 +170,7 @@ export default function LoginScreen() {
           <TouchableOpacity onPress={() => router.push("/forgot-password")}>
             <Text style={styles.link}>Esqueci minha senha</Text>
           </TouchableOpacity>
-
+          <Stack.Screen options={{ headerShown: false }} />
           <TouchableOpacity onPress={() => router.push("/register")}>
             <Text style={styles.link}>Criar conta</Text>
           </TouchableOpacity>
