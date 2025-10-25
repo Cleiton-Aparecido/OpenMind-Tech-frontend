@@ -1,3 +1,2 @@
-// app/(tabs)/index.tsx
-import Home from "../screens/home";
+import Home from "../screens/homeScreen";
 export default Home;
