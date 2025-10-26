@@ -1,12 +1,17 @@
+import { BASE_URL } from "@/env";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
+import {
+  router,
+  Stack,
+  useFocusEffect,
+  useLocalSearchParams,
+} from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Image,
   Modal,
-  Platform,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -27,9 +32,6 @@ type Post = {
   author?: { name?: string };
 };
 
-const BASE_URL =
-  Platform.OS === "android" ? "http://10.0.2.2:3010" : "http://localhost:3010";
-
 export default function Home() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,12 +44,13 @@ export default function Home() {
     message?: string;
   } | null>(null);
 
-  const { flashType, flashTitle, flashMessage, refresh } = useLocalSearchParams<{
-    flashType?: "success" | "error";
-    flashTitle?: string;
-    flashMessage?: string;
-    refresh?: string;
-  }>();
+  const { flashType, flashTitle, flashMessage, refresh } =
+    useLocalSearchParams<{
+      flashType?: "success" | "error";
+      flashTitle?: string;
+      flashMessage?: string;
+      refresh?: string;
+    }>();
 
   // Exibir mensagem flash quando houver
   useEffect(() => {
@@ -57,7 +60,7 @@ export default function Home() {
         title: flashTitle,
         message: flashMessage,
       });
-      
+
       // Auto-fechar após 5 segundos
       const timer = setTimeout(() => setFlash(null), 5000);
       return () => clearTimeout(timer);
