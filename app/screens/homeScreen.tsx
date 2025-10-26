@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { router, Stack, useFocusEffect } from "expo-router";
+import { router, Stack, useFocusEffect, useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -36,6 +36,33 @@ export default function Home() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [flash, setFlash] = useState<{
+    type: "success" | "error";
+    title?: string;
+    message?: string;
+  } | null>(null);
+
+  const { flashType, flashTitle, flashMessage, refresh } = useLocalSearchParams<{
+    flashType?: "success" | "error";
+    flashTitle?: string;
+    flashMessage?: string;
+    refresh?: string;
+  }>();
+
+  // Exibir mensagem flash quando houver
+  useEffect(() => {
+    if (flashType || flashTitle || flashMessage) {
+      setFlash({
+        type: (flashType as any) || "success",
+        title: flashTitle,
+        message: flashMessage,
+      });
+      
+      // Auto-fechar após 5 segundos
+      const timer = setTimeout(() => setFlash(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [flashType, flashTitle, flashMessage]);
 
   const fetchFeed = useCallback(async () => {
     try {
@@ -62,6 +89,13 @@ export default function Home() {
   useEffect(() => {
     fetchFeed();
   }, [fetchFeed]);
+
+  // Atualizar feed quando o parâmetro refresh mudar (ex: após criar post)
+  useEffect(() => {
+    if (refresh) {
+      fetchFeed();
+    }
+  }, [refresh, fetchFeed]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -98,6 +132,7 @@ export default function Home() {
 
   const goEditProfile = () => {
     setProfileOpen(false);
+    // @ts-ignore - rota dinâmica
     router.push("/(tabs)/edit-profile");
   };
 
@@ -154,6 +189,29 @@ export default function Home() {
           <Text style={styles.profileIcon}>👤</Text>
         </TouchableOpacity>
       </View>
+
+      {/* MENSAGEM FLASH */}
+      {!!flash && (
+        <View
+          style={[
+            styles.flashBox,
+            flash.type === "success" ? styles.flashSuccess : styles.flashError,
+          ]}
+        >
+          {!!flash.title && (
+            <Text style={styles.flashTitle}>{flash.title}</Text>
+          )}
+          {!!flash.message && (
+            <Text style={styles.flashText}>{flash.message}</Text>
+          )}
+          <TouchableOpacity
+            style={styles.flashClose}
+            onPress={() => setFlash(null)}
+          >
+            <Text style={styles.flashCloseText}>Fechar</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* CARD DE PROGRESSO */}
       <View style={styles.progressCard}>
@@ -292,6 +350,21 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   profileIcon: { fontSize: 18 },
+
+  /* Flash Message */
+  flashBox: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderWidth: 1,
+    padding: 12,
+    borderRadius: 8,
+  },
+  flashSuccess: { borderColor: "#b3ffd4", backgroundColor: "#e6fff1" },
+  flashError: { borderColor: "#ffb3b3", backgroundColor: "#ffe6e6" },
+  flashTitle: { fontWeight: "700", marginBottom: 4, color: "#0F172A" },
+  flashText: { color: "#2d2d2d" },
+  flashClose: { alignSelf: "flex-end", marginTop: 6 },
+  flashCloseText: { color: "#0EA5E9", fontWeight: "600" },
 
   /* Progress Card */
   progressCard: {
