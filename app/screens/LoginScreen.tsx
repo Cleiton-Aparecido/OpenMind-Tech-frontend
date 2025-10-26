@@ -1,9 +1,9 @@
+import { BASE_URL } from "@/env";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -32,6 +32,7 @@ export default function LoginScreen() {
     flashMessage?: string;
   }>();
 
+  // Recebe mensagens vindas de outras telas (ex: pós-cadastro)
   useEffect(() => {
     if (flashType || flashTitle || flashMessage) {
       setFlash({
@@ -42,20 +43,26 @@ export default function LoginScreen() {
     }
   }, [flashType, flashTitle, flashMessage]);
 
-  const baseURL = useMemo(() => {
-    if (Platform.OS === "android") return "http://10.0.2.2:3001";
-    return "http://localhost:3010";
-  }, []);
+  // Auto-fecha o flash após 5s
+  useEffect(() => {
+    if (!flash) return;
+    const t = setTimeout(() => setFlash(null), 5000);
+    return () => clearTimeout(t);
+  }, [flash]);
 
   async function handleLogin() {
     if (!email || !senha) {
-      Alert.alert("Erro", "Preencha e-mail e senha.");
+      setFlash({
+        type: "error",
+        title: "Dados obrigatórios",
+        message: "Preencha e-mail e senha.",
+      });
       return;
     }
 
     setLoading(true);
     try {
-      const response = await fetch(`${baseURL}/auth/login`, {
+      const response = await fetch(`${BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password: senha }),
@@ -63,15 +70,32 @@ export default function LoginScreen() {
 
       if (!response.ok) {
         const raw = await response.text();
-        let msg: any = "Credenciais inválidas";
+        let msg: any = "Falha no login";
+
         try {
           const data = raw ? JSON.parse(raw) : {};
-          msg = data?.message || data?.error || raw || msg;
-          if (Array.isArray(msg)) msg = msg[0];
-        } catch {}
-        throw new Error(
-          typeof msg === "string" ? msg : "Credenciais inválidas"
-        );
+          msg =
+            data?.message ||
+            data?.error ||
+            (Array.isArray(data?.errors) ? data.errors[0] : undefined) ||
+            raw ||
+            msg;
+        } catch {
+          // JSON inválido: mantém msg padrão/raw
+        }
+
+        if (response.status === 400 || response.status === 401) {
+          msg = typeof msg === "string" ? msg : "E-mail ou senha incorretos.";
+        } else if (response.status >= 500) {
+          msg = "Servidor indisponível. Tente novamente em alguns minutos.";
+        }
+
+        setFlash({
+          type: "error",
+          title: "Erro no login",
+          message: String(msg),
+        });
+        return; // Não continua para o fluxo de sucesso
       }
 
       const data = await response.json();
@@ -86,7 +110,14 @@ export default function LoginScreen() {
         },
       });
     } catch (err: any) {
-      Alert.alert("Erro", err?.message || "Falha no login");
+      const msg = (err?.message || "").toLowerCase().includes("network")
+        ? "Sem conexão. Verifique sua internet."
+        : err?.message || "Falha no login";
+      setFlash({
+        type: "error",
+        title: "Erro de conexão",
+        message: msg,
+      });
     } finally {
       setLoading(false);
     }
@@ -153,6 +184,7 @@ export default function LoginScreen() {
             secureTextEntry
             editable={!loading}
             returnKeyType="done"
+            onSubmitEditing={handleLogin}
           />
 
           <TouchableOpacity
