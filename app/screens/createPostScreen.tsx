@@ -1,24 +1,27 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as ImagePicker from 'expo-image-picker';
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function CreatePostScreen() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
+  const [imageUrl, setImageUrl] = useState("");
+  const [images, setImages] = useState<string[]>([]);
 
   const [flash, setFlash] = useState<{
     type: "success" | "error";
@@ -47,6 +50,48 @@ export default function CreatePostScreen() {
     return "http://localhost:3010";
   }, []);
 
+  async function pickImage() {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        setImageUrl(result.assets[0].uri);
+      }
+    } catch (error) {
+      Alert.alert("Erro", "Não foi possível selecionar a imagem.");
+    }
+  }
+
+  async function pickMultipleImages() {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets) {
+        const uris = result.assets.map((asset: any) => asset.uri);
+        setImages(uris);
+      }
+    } catch (error) {
+      Alert.alert("Erro", "Não foi possível selecionar as imagens.");
+    }
+  }
+
+  function removeMainImage() {
+    setImageUrl("");
+  }
+
+  function removeImage(index: number) {
+    setImages(prev => prev.filter((_, i) => i !== index));
+  }
+
   async function handleCreatePost() {
     if (!title || !content) {
       Alert.alert("Erro", "Preencha o título e o conteúdo do post.");
@@ -63,13 +108,17 @@ export default function CreatePostScreen() {
         return;
       }
 
+      const postData: any = { title, content };
+      if (imageUrl) postData.imageUrl = imageUrl;
+      if (images.length > 0) postData.images = images;
+
       const response = await fetch(`${baseURL}/feed`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({ title, content }),
+        body: JSON.stringify(postData),
       });
 
       if (!response.ok) {
@@ -90,6 +139,8 @@ export default function CreatePostScreen() {
       // Limpar campos
       setTitle("");
       setContent("");
+      setImageUrl("");
+      setImages([]);
 
       // Redirecionar para a home com mensagem de sucesso
       router.replace({
@@ -172,6 +223,80 @@ export default function CreatePostScreen() {
             returnKeyType="done"
           />
 
+          {/* Seção de Upload de Imagens */}
+          <View style={styles.imageSection}>
+            <Text style={styles.sectionLabel}>Imagens (Opcional)</Text>
+            
+            {/* Botões de Upload */}
+            <View style={styles.uploadButtons}>
+              <TouchableOpacity
+                style={styles.uploadBtn}
+                onPress={pickImage}
+                disabled={loading}
+              >
+                <Text style={styles.uploadBtnText}>📷 Imagem Principal</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.uploadBtn}
+                onPress={pickMultipleImages}
+                disabled={loading}
+              >
+                <Text style={styles.uploadBtnText}>🖼️ Múltiplas Imagens</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Preview da Imagem Principal */}
+            {imageUrl ? (
+              <View style={styles.imagePreview}>
+                <Text style={styles.previewLabel}>Imagem Principal:</Text>
+                <View style={styles.imageContainer}>
+                  <Image
+                    source={{ uri: imageUrl }}
+                    style={styles.mainImage}
+                    resizeMode="cover"
+                  />
+                  <TouchableOpacity
+                    style={styles.removeBtn}
+                    onPress={removeMainImage}
+                  >
+                    <Text style={styles.removeBtnText}>❌</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : null}
+
+            {/* Preview das Múltiplas Imagens */}
+            {images.length > 0 ? (
+              <View style={styles.imagePreview}>
+                <Text style={styles.previewLabel}>
+                  Galeria ({images.length} {images.length === 1 ? 'imagem' : 'imagens'}):
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.imageGallery}
+                >
+                  {images.map((uri, index) => (
+                    <View key={index} style={styles.galleryItem}>
+                      <Image
+                        source={{ uri }}
+                        style={styles.galleryImage}
+                        resizeMode="cover"
+                      />
+                      <TouchableOpacity
+                        style={styles.removeBtn}
+                        onPress={() => removeImage(index)}
+                      >
+                        <Text style={styles.removeBtnText}>❌</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
+          </View>
+
           <TouchableOpacity
             style={[styles.button, loading && { opacity: 0.7 }]}
             onPress={handleCreatePost}
@@ -252,4 +377,90 @@ const styles = StyleSheet.create({
   },
   buttonText: { color: "#fff", textAlign: "center", fontWeight: "bold" },
   link: { color: "#007bff", textAlign: "center", marginTop: 10 },
+  
+  // Estilos para upload de imagens
+  imageSection: {
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  sectionLabel: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#2d2d2d",
+    marginBottom: 8,
+  },
+  uploadButtons: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 12,
+  },
+  uploadBtn: {
+    flex: 1,
+    backgroundColor: "#f0f0f0",
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    alignItems: "center",
+  },
+  uploadBtnText: {
+    color: "#007bff",
+    fontWeight: "600",
+    fontSize: 13,
+  },
+  imagePreview: {
+    marginTop: 12,
+  },
+  previewLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#555",
+    marginBottom: 8,
+  },
+  imageContainer: {
+    position: "relative",
+    borderRadius: 8,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  mainImage: {
+    width: "100%",
+    height: 200,
+    backgroundColor: "#f5f5f5",
+  },
+  removeBtn: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    borderRadius: 16,
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  removeBtnText: {
+    fontSize: 16,
+  },
+  imageGallery: {
+    flexDirection: "row",
+  },
+  galleryItem: {
+    position: "relative",
+    marginRight: 8,
+    borderRadius: 8,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+  galleryImage: {
+    width: 120,
+    height: 120,
+    backgroundColor: "#f5f5f5",
+  },
 });

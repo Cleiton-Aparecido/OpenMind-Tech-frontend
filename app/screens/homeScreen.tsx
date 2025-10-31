@@ -15,6 +15,7 @@ import {
   Pressable,
   RefreshControl,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -30,6 +31,8 @@ type Post = {
   tags?: string[];
   type?: string;
   author?: { name?: string };
+  imageUrl?: string;
+  images?: string[];
 };
 
 export default function Home() {
@@ -161,6 +164,37 @@ export default function Home() {
         <Text style={styles.cardDesc} numberOfLines={3}>
           {item.content}
         </Text>
+
+        {/* Imagem Principal */}
+        {!!item.imageUrl && (
+          <View style={styles.postImageContainer}>
+            <Image
+              source={{ uri: item.imageUrl }}
+              style={styles.postMainImage}
+              resizeMode="cover"
+            />
+          </View>
+        )}
+
+        {/* Galeria de Imagens */}
+        {!!item.images?.length && (
+          <View style={styles.postGalleryContainer}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.postGallery}
+            >
+              {item.images.map((imgUri, idx) => (
+                <Image
+                  key={idx}
+                  source={{ uri: imgUri }}
+                  style={styles.postGalleryImage}
+                  resizeMode="cover"
+                />
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         {!!item.tags?.length && (
           <View style={styles.tagsRow}>
@@ -511,4 +545,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   cancelText: { color: "#64748B", fontWeight: "600" },
+
+  // Estilos para imagens nos posts
+  postImageContainer: {
+    marginTop: 12,
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  postMainImage: {
+    width: "100%",
+    height: 200,
+    backgroundColor: "#F1F5F9",
+  },
+  postGalleryContainer: {
+    marginTop: 12,
+  },
+  postGallery: {
+    flexDirection: "row",
+  },
+  postGalleryImage: {
+    width: 140,
+    height: 140,
+    borderRadius: 8,
+    marginRight: 8,
+    backgroundColor: "#F1F5F9",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
 });
