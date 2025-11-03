@@ -1,7 +1,7 @@
-// app/screens/RegisterScreen.tsx
+import { BASE_URL } from "@/env";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -62,11 +62,6 @@ export default function RegisterScreen() {
 
   const [touched, setTouched] = useState<{ [k: string]: boolean }>({});
   const [errors, setErrors] = useState<{ [k: string]: string | null }>({});
-
-  const baseURL = useMemo(() => {
-    if (Platform.OS === "android") return "http://10.0.2.2:3001";
-    return "http://localhost:3010";
-  }, []);
 
   const validateAndNormalizeTextDate = () => {
     if (birthText.length === 0) {
@@ -154,7 +149,7 @@ export default function RegisterScreen() {
     const timeout = setTimeout(() => controller.abort(), 15000);
 
     try {
-      const resp = await fetch(`${baseURL}/users`, {
+      const resp = await fetch(`${BASE_URL}/users`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
