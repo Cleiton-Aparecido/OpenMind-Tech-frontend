@@ -27,10 +27,11 @@ type Post = {
   title: string;
   content: string;
   userName: string;
+  userRole?: string;
   createdAt?: string;
   tags?: string[];
   type?: string;
-  author?: { name?: string };
+  author?: { name?: string; role?: string };
   imageUrl?: string;
   images?: string[];
 };
@@ -83,7 +84,9 @@ export default function Home() {
       });
       if (!res.ok) throw new Error(`Erro ${res.status}`);
       const json = await res.json();
-      setPosts(Array.isArray(json?.data) ? json.data : []);
+      const postsData = Array.isArray(json?.data) ? json.data : [];
+      console.log('Posts recebidos:', JSON.stringify(postsData.slice(0, 2), null, 2));
+      setPosts(postsData);
     } catch (e: any) {
       setError(e?.message ?? "Falha ao carregar o feed");
     } finally {
@@ -150,14 +153,15 @@ export default function Home() {
 
   const renderItem = ({ item }: { item: Post }) => {
     const badge = item.type ?? "Post";
-    const author = item.author?.name ?? "Autor";
+    const author = item.author?.name ?? item.userName ?? "Autor";
+    
     return (
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <View style={[styles.badge, badgeStyles(badge)]}>
             <Text style={styles.badgeText}>{badge}</Text>
           </View>
-          <Text style={styles.cardAuthor}>por {item.userName}</Text>
+          <Text style={styles.cardAuthor}>por {author}</Text>
         </View>
 
         <Text style={styles.cardTitle}>{item.title}</Text>
@@ -465,7 +469,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   badgeText: { fontSize: 12, fontWeight: "700", color: "#334155" },
-  cardAuthor: { color: "#64748B", fontSize: 12 },
+  authorContainer: { flex: 1, alignItems: "flex-end" },
+  cardAuthor: { color: "#64748B", fontSize: 12, fontWeight: "600" },
+  cardRole: { 
+    color: "#0EA5E9", 
+    fontSize: 11, 
+    fontWeight: "600",
+    marginTop: 2,
+  },
   cardTitle: { fontSize: 16, fontWeight: "800", color: "#0F172A" },
   cardDesc: { color: "#334155", marginTop: 6, lineHeight: 20 },
 
