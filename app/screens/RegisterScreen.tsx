@@ -1,5 +1,6 @@
 import { BASE_URL } from "@/env";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { Picker } from "@react-native-picker/picker";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
@@ -51,6 +52,7 @@ export default function RegisterScreen() {
   const [name, setName] = useState("");
   const [senha, setSenha] = useState("");
   const [email, setEmail] = useState("");
+  const [role, setRole] = useState("");
   const [birthText, setBirthText] = useState("");
   const [birthDate, setBirthDate] = useState<Date | null>(null);
   const [showPicker, setShowPicker] = useState(false);
@@ -156,6 +158,7 @@ export default function RegisterScreen() {
           email: email.trim().toLowerCase(),
           name: name.trim(),
           password: senha,
+          ...(role && { role }),
         }),
         signal: controller.signal,
       });
@@ -329,6 +332,47 @@ export default function RegisterScreen() {
             <Text style={styles.helperText}>Mínimo de 6 caracteres.</Text>
           )}
 
+          <View style={styles.pickerContainer}>
+            <Text style={styles.pickerLabel}>Cargo na área de TI (opcional)</Text>
+            <View style={styles.pickerWrapper}>
+              <Picker
+                selectedValue={role}
+                onValueChange={(itemValue) => setRole(itemValue)}
+                enabled={!loading}
+                style={styles.picker}
+              >
+                <Picker.Item label="Selecione um cargo (opcional)" value="" />
+                <Picker.Item label="Desenvolvedor Júnior" value="Desenvolvedor Júnior" />
+                <Picker.Item label="Desenvolvedor Pleno" value="Desenvolvedor Pleno" />
+                <Picker.Item label="Desenvolvedor Sênior" value="Desenvolvedor Sênior" />
+                <Picker.Item label="Tech Lead" value="Tech Lead" />
+                <Picker.Item label="Arquiteto de Software" value="Arquiteto de Software" />
+                <Picker.Item label="Engenheiro de Software" value="Engenheiro de Software" />
+                <Picker.Item label="Analista de Sistemas" value="Analista de Sistemas" />
+                <Picker.Item label="Analista de Dados" value="Analista de Dados" />
+                <Picker.Item label="Cientista de Dados" value="Cientista de Dados" />
+                <Picker.Item label="Engenheiro de Dados" value="Engenheiro de Dados" />
+                <Picker.Item label="Engenheiro de Machine Learning" value="Engenheiro de Machine Learning" />
+                <Picker.Item label="DevOps Engineer" value="DevOps Engineer" />
+                <Picker.Item label="SRE (Site Reliability Engineer)" value="SRE (Site Reliability Engineer)" />
+                <Picker.Item label="QA/Tester" value="QA/Tester" />
+                <Picker.Item label="Analista de QA" value="Analista de QA" />
+                <Picker.Item label="Designer UX/UI" value="Designer UX/UI" />
+                <Picker.Item label="Product Manager" value="Product Manager" />
+                <Picker.Item label="Scrum Master" value="Scrum Master" />
+                <Picker.Item label="Gerente de Projetos" value="Gerente de Projetos" />
+                <Picker.Item label="Analista de Segurança" value="Analista de Segurança" />
+                <Picker.Item label="Administrador de Sistemas" value="Administrador de Sistemas" />
+                <Picker.Item label="Administrador de Banco de Dados" value="Administrador de Banco de Dados" />
+                <Picker.Item label="Suporte Técnico" value="Suporte Técnico" />
+                <Picker.Item label="Estagiário" value="Estagiário" />
+                <Picker.Item label="Estudante" value="Estudante" />
+                <Picker.Item label="Outro" value="Outro" />
+              </Picker>
+            </View>
+            <Text style={styles.helperText}>Ajuda outros usuários a conhecê-lo melhor.</Text>
+          </View>
+
           {showPicker && (
             <DateTimePicker
               value={birthDate || new Date(2000, 0, 1)}
@@ -476,4 +520,23 @@ const styles = StyleSheet.create({
 
   secondaryAction: { marginTop: 14, marginBottom: 8 },
   secondaryActionText: { color: "#007bff", fontWeight: "600" },
+
+  pickerContainer: { marginBottom: 12, width: "100%" },
+  pickerLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#2f3b66",
+    marginBottom: 6,
+  },
+  pickerWrapper: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    backgroundColor: "#fff",
+    overflow: "hidden",
+  },
+  picker: {
+    width: "100%",
+    height: Platform.OS === "ios" ? 200 : 50,
+  },
 });
