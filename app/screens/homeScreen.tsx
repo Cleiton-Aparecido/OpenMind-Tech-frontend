@@ -34,6 +34,7 @@ type Post = {
   author?: { name?: string; role?: string };
   imageUrl?: string;
   images?: string[];
+  edit?: boolean; // 👈 vem do back
 };
 
 export default function Home() {
@@ -48,6 +49,14 @@ export default function Home() {
     message?: string;
   } | null>(null);
 
+  // controla quais posts estão com "ler mais" aberto
+  const [expandedPosts, setExpandedPosts] = useState<Record<string, boolean>>(
+    {}
+  );
+
+  // controla qual post está em "confirmar exclusão"
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
   const { flashType, flashTitle, flashMessage, refresh } =
     useLocalSearchParams<{
       flashType?: "success" | "error";
@@ -56,7 +65,7 @@ export default function Home() {
       refresh?: string;
     }>();
 
-  // Exibir mensagem flash quando houver
+  // Exibir mensagem flash quando houver (ex: vindo da criação/edição)
   useEffect(() => {
     if (flashType || flashTitle || flashMessage) {
       setFlash({
@@ -65,7 +74,6 @@ export default function Home() {
         message: flashMessage,
       });
 
-      // Auto-fechar após 5 segundos
       const timer = setTimeout(() => setFlash(null), 5000);
       return () => clearTimeout(timer);
     }
@@ -75,7 +83,15 @@ export default function Home() {
     try {
       setError(null);
       const token = await AsyncStorage.getItem("userToken");
-      const res = await fetch(`${BASE_URL}/feed?page=1&limit=10`, {
+      if (!token) {
+        // se não tiver token, não tenta buscar
+        setPosts([]);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
+      const res = await fetch(`${BASE_URL}/feed?page=1&limit=20`, {
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
@@ -85,7 +101,10 @@ export default function Home() {
       if (!res.ok) throw new Error(`Erro ${res.status}`);
       const json = await res.json();
       const postsData = Array.isArray(json?.data) ? json.data : [];
-      console.log('Posts recebidos:', JSON.stringify(postsData.slice(0, 2), null, 2));
+      console.log(
+        "Posts recebidos:",
+        JSON.stringify(postsData.slice(0, 2), null, 2)
+      );
       setPosts(postsData);
     } catch (e: any) {
       setError(e?.message ?? "Falha ao carregar o feed");
@@ -95,13 +114,39 @@ export default function Home() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchFeed();
-  }, [fetchFeed]);
+  // 👉 TODA VEZ que a tela ganhar foco:
+  // - verifica se tem token
+  // - se não tiver → manda pra "/" (login / landing)
+  // - se tiver → carrega o feed para o usuário logado
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
 
-  // Atualizar feed quando o parâmetro refresh mudar (ex: após criar post)
+      (async () => {
+        const token = await AsyncStorage.getItem("userToken");
+
+        if (!alive) return;
+
+        if (!token) {
+          router.replace("/");
+          return;
+        }
+
+        // sempre que focar a tela, recarrega o feed do usuário atual
+        setLoading(true);
+        await fetchFeed();
+      })();
+
+      return () => {
+        alive = false;
+      };
+    }, [fetchFeed])
+  );
+
+  // Atualizar feed quando o parâmetro refresh mudar (ex: após criar/editar post)
   useEffect(() => {
     if (refresh) {
+      setLoading(true);
       fetchFeed();
     }
   }, [refresh, fetchFeed]);
@@ -117,27 +162,18 @@ export default function Home() {
   const handleLogout = async () => {
     try {
       await AsyncStorage.removeItem("userToken");
+      // limpa feed ao deslogar
+      setPosts([]);
+      setExpandedPosts({});
+      setConfirmDeleteId(null);
       setProfileOpen(false);
-      router.replace({
-        pathname: "/(tabs)/login",
-      });
+
+      // volta sempre pra tela de login
+      router.replace("/(tabs)/login");
     } catch (err) {
       console.error("Erro ao deslogar:", err);
     }
   };
-
-  useFocusEffect(
-    React.useCallback(() => {
-      let alive = true;
-      (async () => {
-        const t = await AsyncStorage.getItem("userToken");
-        if (alive && !t) router.replace("/");
-      })();
-      return () => {
-        alive = false;
-      };
-    }, [])
-  );
 
   const goEditProfile = () => {
     setProfileOpen(false);
@@ -151,23 +187,174 @@ export default function Home() {
     </View>
   );
 
+  // alternar ler mais / ler menos
+  const toggleExpand = (postId: string) => {
+    setExpandedPosts((prev) => ({
+      ...prev,
+      [postId]: !prev[postId],
+    }));
+  };
+
+  const handleAskDelete = (postId: string) => {
+    setConfirmDeleteId(postId);
+  };
+
+  const handleConfirmDelete = async (postId: string) => {
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      if (!token) {
+        setFlash({
+          type: "error",
+          title: "Erro",
+          message: "Você precisa estar logado para excluir um post.",
+        });
+        setConfirmDeleteId(null);
+        return;
+      }
+
+      const url = `${BASE_URL}/feed/${postId}`;
+      console.log("DELETE URL:", url);
+
+      const res = await fetch(url, {
+        method: "DELETE",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const raw = await res.text();
+      console.log("Status DELETE:", res.status);
+      console.log("Resposta DELETE:", raw);
+
+      if (!res.ok) {
+        let msg: any = "Falha ao excluir post";
+        try {
+          const data = raw ? JSON.parse(raw) : {};
+          msg = data?.message || data?.error || raw || msg;
+          if (Array.isArray(msg)) msg = msg[0];
+        } catch (e) {
+          // se não for JSON, usa o texto mesmo
+        }
+
+        throw new Error(
+          typeof msg === "string" ? msg : "Falha ao excluir post"
+        );
+      }
+
+      // se chegou aqui, deu certo
+      setPosts((prev) => prev.filter((post) => post.id !== postId));
+      setConfirmDeleteId(null);
+
+      setFlash({
+        type: "success",
+        title: "Post excluído",
+        message: "Publicação excluída com sucesso.",
+      });
+    } catch (err: any) {
+      console.log("Erro ao excluir:", err);
+      setConfirmDeleteId(null);
+      setFlash({
+        type: "error",
+        title: "Erro ao excluir",
+        message: err?.message || "Falha ao excluir publicação.",
+      });
+    }
+  };
+
   const renderItem = ({ item }: { item: Post }) => {
     const badge = item.type ?? "Post";
     const author = item.author?.name ?? item.userName ?? "Autor";
-    
+
+    const handleEdit = () => {
+      router.push({
+        pathname: "/(tabs)/create-post",
+        params: {
+          mode: "edit",
+          id: item.id,
+          title: item.title,
+          content: item.content,
+          imageUrl: item.imageUrl || "",
+          images: JSON.stringify(item.images || []),
+        },
+      });
+    };
+
+    const isExpanded = expandedPosts[item.id] === true;
+    const shouldShowToggle = (item.content || "").length > 120;
+    const isConfirmingDelete = confirmDeleteId === item.id;
+
     return (
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <View style={[styles.badge, badgeStyles(badge)]}>
             <Text style={styles.badgeText}>{badge}</Text>
           </View>
-          <Text style={styles.cardAuthor}>por {author}</Text>
+
+          <View style={{ alignItems: "flex-end" }}>
+            <Text style={styles.cardAuthor}>por {author}</Text>
+
+            {item.edit && (
+              <View style={styles.actionsRow}>
+                {isConfirmingDelete ? (
+                  <>
+                    <TouchableOpacity
+                      style={styles.confirmDeleteBtn}
+                      onPress={() => handleConfirmDelete(item.id)}
+                    >
+                      <Text style={styles.confirmDeleteText}>Confirmar</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.cancelDeleteBtn}
+                      onPress={() => setConfirmDeleteId(null)}
+                    >
+                      <Text style={styles.cancelDeleteText}>Cancelar</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <>
+                    <TouchableOpacity
+                      style={styles.editBtn}
+                      onPress={handleEdit}
+                    >
+                      <Text style={styles.editBtnText}>Editar</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.deleteBtn}
+                      onPress={() => handleAskDelete(item.id)}
+                    >
+                      <Text style={styles.deleteBtnText}>Excluir</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            )}
+          </View>
         </View>
 
         <Text style={styles.cardTitle}>{item.title}</Text>
-        <Text style={styles.cardDesc} numberOfLines={3}>
+
+        {/* Descrição com Ler mais / Ler menos */}
+        <Text
+          style={styles.cardDesc}
+          numberOfLines={isExpanded ? undefined : 3}
+          ellipsizeMode="tail"
+        >
           {item.content}
         </Text>
+
+        {shouldShowToggle && (
+          <TouchableOpacity
+            onPress={() => toggleExpand(item.id)}
+            style={styles.readMoreBtn}
+          >
+            <Text style={styles.readMoreText}>
+              {isExpanded ? "Ler menos" : "Ler mais"}
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* Imagem Principal */}
         {!!item.imageUrl && (
@@ -469,16 +656,84 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   badgeText: { fontSize: 12, fontWeight: "700", color: "#334155" },
-  authorContainer: { flex: 1, alignItems: "flex-end" },
   cardAuthor: { color: "#64748B", fontSize: 12, fontWeight: "600" },
-  cardRole: { 
-    color: "#0EA5E9", 
-    fontSize: 11, 
-    fontWeight: "600",
-    marginTop: 2,
+
+  actionsRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 4,
   },
+
+  editBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#0EA5E9",
+    backgroundColor: "#E0F2FE",
+  },
+  editBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#0369A1",
+  },
+
+  deleteBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#F87171",
+    backgroundColor: "#FEE2E2",
+  },
+  deleteBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#B91C1C",
+  },
+
+  confirmDeleteBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#22C55E",
+    backgroundColor: "#DCFCE7",
+  },
+  confirmDeleteText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#15803D",
+  },
+
+  cancelDeleteBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#CBD5F5",
+    backgroundColor: "#E5E7EB",
+  },
+  cancelDeleteText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#374151",
+  },
+
   cardTitle: { fontSize: 16, fontWeight: "800", color: "#0F172A" },
   cardDesc: { color: "#334155", marginTop: 6, lineHeight: 20 },
+
+  // botão ler mais / ler menos
+  readMoreBtn: {
+    marginTop: 4,
+    alignSelf: "flex-start",
+    paddingVertical: 2,
+  },
+  readMoreText: {
+    color: "#0EA5E9",
+    fontWeight: "600",
+    fontSize: 13,
+  },
 
   tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 10 },
   tag: {
