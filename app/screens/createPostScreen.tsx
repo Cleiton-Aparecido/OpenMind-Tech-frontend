@@ -1,7 +1,8 @@
+import { BASE_URL } from "@/env";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as ImagePicker from 'expo-image-picker';
+import * as ImagePicker from "expo-image-picker";
 import { router, Stack, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -29,11 +30,32 @@ export default function CreatePostScreen() {
     message?: string;
   } | null>(null);
 
-  const { flashType, flashTitle, flashMessage } = useLocalSearchParams<{
+  const params = useLocalSearchParams<{
     flashType?: "success" | "error";
     flashTitle?: string;
     flashMessage?: string;
+
+    mode?: string;
+    id?: string;
+    title?: string;
+    content?: string;
+    imageUrl?: string;
+    images?: string;
   }>();
+
+  const {
+    flashType,
+    flashTitle,
+    flashMessage,
+    mode,
+    id: postIdParam,
+    title: initialTitleParam,
+    content: initialContentParam,
+    imageUrl: initialImageUrlParam,
+    images: imagesParam,
+  } = params;
+
+  const isEditing = mode === "edit" && !!postIdParam;
 
   useEffect(() => {
     if (flashType || flashTitle || flashMessage) {
@@ -45,10 +67,31 @@ export default function CreatePostScreen() {
     }
   }, [flashType, flashTitle, flashMessage]);
 
-  const baseURL = useMemo(() => {
-    if (Platform.OS === "android") return "http://10.0.2.2:3010";
-    return "http://localhost:3010";
-  }, []);
+  // Preencher campos quando vier em modo edição
+  useEffect(() => {
+    if (isEditing) {
+      if (initialTitleParam) setTitle(String(initialTitleParam));
+      if (initialContentParam) setContent(String(initialContentParam));
+      if (initialImageUrlParam) setImageUrl(String(initialImageUrlParam));
+
+      if (imagesParam) {
+        try {
+          const parsed = JSON.parse(String(imagesParam));
+          if (Array.isArray(parsed)) {
+            setImages(parsed);
+          }
+        } catch (e) {
+          console.warn("Falha ao parsear imagesParam:", e);
+        }
+      }
+    }
+  }, [
+    isEditing,
+    initialTitleParam,
+    initialContentParam,
+    initialImageUrlParam,
+    imagesParam,
+  ]);
 
   async function pickImage() {
     try {
@@ -89,7 +132,7 @@ export default function CreatePostScreen() {
   }
 
   function removeImage(index: number) {
-    setImages(prev => prev.filter((_, i) => i !== index));
+    setImages((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function handleCreatePost() {
@@ -101,9 +144,12 @@ export default function CreatePostScreen() {
     setLoading(true);
     try {
       const token = await AsyncStorage.getItem("userToken");
-      
+
       if (!token) {
-        Alert.alert("Erro", "Você precisa estar logado para criar um post.");
+        Alert.alert(
+          "Erro",
+          "Você precisa estar logado para criar/editar um post."
+        );
         router.replace("/login");
         return;
       }
@@ -112,30 +158,36 @@ export default function CreatePostScreen() {
       if (imageUrl) postData.imageUrl = imageUrl;
       if (images.length > 0) postData.images = images;
 
-      const response = await fetch(`${baseURL}/feed`, {
-        method: "POST",
-        headers: { 
+      const url = isEditing
+        ? `${BASE_URL}/feed/${postIdParam}`
+        : `${BASE_URL}/feed`;
+
+      const method = isEditing ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method,
+        headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(postData),
       });
 
       if (!response.ok) {
         const raw = await response.text();
-        let msg: any = "Falha ao criar post";
+        let msg: any = isEditing
+          ? "Falha ao atualizar post"
+          : "Falha ao criar post";
         try {
           const data = raw ? JSON.parse(raw) : {};
           msg = data?.message || data?.error || raw || msg;
           if (Array.isArray(msg)) msg = msg[0];
         } catch {}
-        throw new Error(
-          typeof msg === "string" ? msg : "Falha ao criar post"
-        );
+        throw new Error(typeof msg === "string" ? msg : "Falha ao salvar post");
       }
 
-      const data = await response.json();
-      
+      await response.json();
+
       // Limpar campos
       setTitle("");
       setContent("");
@@ -147,13 +199,19 @@ export default function CreatePostScreen() {
         pathname: "/(tabs)",
         params: {
           flashType: "success",
-          flashTitle: "Post criado!",
-          flashMessage: "Seu post foi publicado com sucesso.",
+          flashTitle: isEditing ? "Post atualizado!" : "Post criado!",
+          flashMessage: isEditing
+            ? "Seu post foi atualizado com sucesso."
+            : "Seu post foi publicado com sucesso.",
           refresh: Date.now().toString(), // Força atualização dos posts
         },
       });
     } catch (err: any) {
-      Alert.alert("Erro", err?.message || "Falha ao criar post");
+      Alert.alert(
+        "Erro",
+        err?.message ||
+          (isEditing ? "Falha ao atualizar post" : "Falha ao criar post")
+      );
     } finally {
       setLoading(false);
     }
@@ -175,7 +233,9 @@ export default function CreatePostScreen() {
             style={styles.logo}
             resizeMode="contain"
           />
-          <Text style={styles.title}>Criar Post</Text>
+          <Text style={styles.title}>
+            {isEditing ? "Editar Post" : "Criar Post"}
+          </Text>
 
           {!!flash && (
             <View
@@ -226,7 +286,7 @@ export default function CreatePostScreen() {
           {/* Seção de Upload de Imagens */}
           <View style={styles.imageSection}>
             <Text style={styles.sectionLabel}>Imagens (Opcional)</Text>
-            
+
             {/* Botões de Upload */}
             <View style={styles.uploadButtons}>
               <TouchableOpacity
@@ -270,7 +330,8 @@ export default function CreatePostScreen() {
             {images.length > 0 ? (
               <View style={styles.imagePreview}>
                 <Text style={styles.previewLabel}>
-                  Galeria ({images.length} {images.length === 1 ? 'imagem' : 'imagens'}):
+                  Galeria ({images.length}{" "}
+                  {images.length === 1 ? "imagem" : "imagens"}):
                 </Text>
                 <ScrollView
                   horizontal
@@ -305,12 +366,14 @@ export default function CreatePostScreen() {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Publicar Post</Text>
+              <Text style={styles.buttonText}>
+                {isEditing ? "Salvar alterações" : "Publicar Post"}
+              </Text>
             )}
           </TouchableOpacity>
 
           <Stack.Screen options={{ headerShown: false }} />
-          
+
           <TouchableOpacity onPress={() => router.back()}>
             <Text style={styles.link}>Voltar</Text>
           </TouchableOpacity>
@@ -377,7 +440,7 @@ const styles = StyleSheet.create({
   },
   buttonText: { color: "#fff", textAlign: "center", fontWeight: "bold" },
   link: { color: "#007bff", textAlign: "center", marginTop: 10 },
-  
+
   // Estilos para upload de imagens
   imageSection: {
     marginTop: 8,
