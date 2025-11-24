@@ -19,6 +19,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const [flash, setFlash] = useState<{
     type: "success" | "error";
@@ -176,16 +177,21 @@ export default function LoginScreen() {
             returnKeyType="next"
           />
 
-          <TextInput
-            style={styles.input}
-            placeholder="Senha"
-            value={senha}
-            onChangeText={setSenha}
-            secureTextEntry
-            editable={!loading}
-            returnKeyType="done"
-            onSubmitEditing={handleLogin}
-          />
+          <View style={[styles.input, styles.inputRow]}>
+            <TextInput
+              style={{ flex: 1 }}
+              placeholder="Senha"
+              value={senha}
+              onChangeText={setSenha}
+              secureTextEntry={!showPassword}
+            />
+            <Text
+              style={styles.togglePwd}
+              onPress={() => setShowPassword((p) => !p)}
+            >
+              {showPassword ? "Ocultar" : "Mostrar"}
+            </Text>
+          </View>
 
           <TouchableOpacity
             style={[styles.button, loading && { opacity: 0.7 }]}
@@ -265,4 +271,15 @@ const styles = StyleSheet.create({
   },
   buttonText: { color: "#fff", textAlign: "center", fontWeight: "bold" },
   link: { color: "#007bff", textAlign: "center", marginTop: 10 },
+
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 0,
+  },
+  togglePwd: {
+    color: "#007bff",
+    marginLeft: 10,
+    fontWeight: "600",
+  },
 });
