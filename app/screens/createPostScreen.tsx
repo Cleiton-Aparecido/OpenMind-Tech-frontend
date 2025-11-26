@@ -93,8 +93,37 @@ export default function CreatePostScreen() {
     imagesParam,
   ]);
 
+  async function requestGalleryPermission(): Promise<boolean> {
+    try {
+      const { status: existingStatus } = await ImagePicker.getMediaLibraryPermissionsAsync();
+      
+      if (existingStatus === 'granted') {
+        return true;
+      }
+
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert(
+          "Permissão necessária",
+          "Precisamos de acesso à sua galeria para você adicionar imagens aos posts. Por favor, habilite nas configurações do dispositivo.",
+          [{ text: "OK" }]
+        );
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Erro ao solicitar permissão:", error);
+      return false;
+    }
+  }
+
   async function pickImage() {
     try {
+      const hasPermission = await requestGalleryPermission();
+      if (!hasPermission) return;
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -112,6 +141,9 @@ export default function CreatePostScreen() {
 
   async function pickMultipleImages() {
     try {
+      const hasPermission = await requestGalleryPermission();
+      if (!hasPermission) return;
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsMultipleSelection: true,

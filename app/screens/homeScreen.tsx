@@ -65,7 +65,6 @@ export default function Home() {
       refresh?: string;
     }>();
 
-  // Exibir mensagem flash quando houver (ex: vindo da criação/edição)
   useEffect(() => {
     if (flashType || flashTitle || flashMessage) {
       setFlash({
@@ -105,6 +104,11 @@ export default function Home() {
         "Posts recebidos:",
         JSON.stringify(postsData.slice(0, 2), null, 2)
       );
+      console.log("Verificando campo 'edit' nos posts:");
+      postsData.forEach((p: any) => {
+        console.log(`Post ID ${p.id}: edit = ${p.edit}`);
+      });
+      
       setPosts(postsData);
     } catch (e: any) {
       setError(e?.message ?? "Falha ao carregar o feed");
