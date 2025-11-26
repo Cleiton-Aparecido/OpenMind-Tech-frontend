@@ -17,13 +17,12 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={DefaultTheme}>
-      {" "}
-      {/* <- antes você usava colorScheme */}
       <Stack>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
-        <Stack screenOptions={{ headerShown: false }} />
+        <Stack.Screen name="register" options={{ headerShown: false }} />
+        <Stack.Screen name="forgot-password" options={{ headerShown: false }} />
       </Stack>
       <StatusBar style="auto" />
     </ThemeProvider>
