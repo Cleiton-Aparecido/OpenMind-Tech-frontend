@@ -11,5 +11,5 @@ if (!ANDROID_URL && !IOS_URL) {
 
 export const BASE_URL =
   Platform.OS === "android"
-    ? ANDROID_URL ?? IOS_URL ?? "http://10.0.2.2:3010"
+    ? ANDROID_URL ?? IOS_URL ?? "http://72.61.59.36:3010"
     : IOS_URL ?? ANDROID_URL ?? "http://localhost:3010";
