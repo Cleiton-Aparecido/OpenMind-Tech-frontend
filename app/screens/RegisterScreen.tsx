@@ -1,127 +1,126 @@
 import { BASE_URL } from "@/env";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import { Picker } from "@react-native-picker/picker";
-import { router } from "expo-router";
+import { router, Stack } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
+  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 
-const MIN_DATE = new Date(1900, 0, 1);
-const MAX_DATE = new Date();
-
-function parseDDMMYYYY(s: string) {
-  const [dd, mm, yyyy] = s.split("/").map((v) => Number(v));
-  if (!dd || !mm || !yyyy) return null;
-  const dt = new Date(yyyy, mm - 1, dd);
-  if (
-    dt.getFullYear() !== yyyy ||
-    dt.getMonth() !== mm - 1 ||
-    dt.getDate() !== dd
-  )
-    return null;
-  return dt;
-}
-function clampDate(d: Date, min: Date, max: Date) {
-  if (d < min) return min;
-  if (d > max) return max;
-  return d;
-}
-function formatBR(d: Date) {
-  return d.toLocaleDateString("pt-BR");
-}
-
-type ApiInfo = {
-  status?: number;
-  message?: string;
-  requestId?: string | null;
-  type: "error" | "success";
-};
+const ROLE_OPTIONS = [
+  "",
+  "Desenvolvedor Júnior",
+  "Desenvolvedor Pleno",
+  "Desenvolvedor Sênior",
+  "Tech Lead",
+  "Arquiteto de Software",
+  "Engenheiro de Software",
+  "Analista de Sistemas",
+  "Analista de Dados",
+  "Cientista de Dados",
+  "Engenheiro de Dados",
+  "Engenheiro de Machine Learning",
+  "DevOps Engineer",
+  "SRE (Site Reliability Engineer)",
+  "QA/Tester",
+  "Analista de QA",
+  "Designer UX/UI",
+  "Product Manager",
+  "Scrum Master",
+  "Gerente de Projetos",
+  "Analista de Segurança",
+  "Administrador de Sistemas",
+  "Administrador de Banco de Dados",
+  "Suporte Técnico",
+  "Estagiário",
+  "Estudante",
+  "Outro",
+];
 
 export default function RegisterScreen() {
+  // ---- FORM STATES ----
   const [name, setName] = useState("");
   const [senha, setSenha] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("");
+
+  // ---- DATE (DIGITADA) ----
   const [birthText, setBirthText] = useState("");
-  const [birthDate, setBirthDate] = useState<Date | null>(null);
-  const [showPicker, setShowPicker] = useState(false);
   const [dateError, setDateError] = useState<string | null>(null);
 
+  // ---- UI FLAGS ----
   const [loading, setLoading] = useState(false);
-  const [apiInfo, setApiInfo] = useState<ApiInfo | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [roleModalVisible, setRoleModalVisible] = useState(false);
 
+  // ---- ERROR SYSTEM ----
+  const [apiInfo, setApiInfo] = useState<any>(null);
   const [touched, setTouched] = useState<{ [k: string]: boolean }>({});
   const [errors, setErrors] = useState<{ [k: string]: string | null }>({});
 
-  const validateAndNormalizeTextDate = () => {
-    if (birthText.length === 0) {
-      setBirthDate(null);
+  const { height, width } = useWindowDimensions();
+
+  const isSmallHeight = height < 680;
+  const isSmallWidth = width < 360;
+  const isTablet = width > 600;
+
+  // ---- VALIDAR DATA DIGITADA ----
+  function validateBirthDate(text: string) {
+    if (!text) {
       setDateError(null);
       return;
     }
-    if (birthText.length < 10) {
-      setDateError("Data incompleta (use DD/MM/AAAA).");
-      setBirthDate(null);
+
+    const regex = /^([0-2]\d|3[0-1])\/(0\d|1[0-2])\/\d{4}$/;
+
+    if (!regex.test(text)) {
+      setDateError("Data inválida (use DD/MM/AAAA).");
       return;
     }
-    const parsed = parseDDMMYYYY(birthText);
-    if (!parsed) {
+
+    const [dd, mm, yyyy] = text.split("/").map(Number);
+    const d = new Date(yyyy, mm - 1, dd);
+
+    if (
+      d.getFullYear() !== yyyy ||
+      d.getMonth() !== mm - 1 ||
+      d.getDate() !== dd
+    ) {
       setDateError("Data inexistente.");
-      setBirthDate(null);
       return;
     }
-    const clamped = clampDate(parsed, MIN_DATE, MAX_DATE);
-    if (clamped.getTime() !== parsed.getTime()) {
-      setBirthDate(clamped);
-      setBirthText(formatBR(clamped));
-      setDateError(
-        clamped.getTime() === MIN_DATE.getTime()
-          ? "Data ajustada para o mínimo permitido (01/01/1900)."
-          : "Data ajustada para hoje (não é permitido futuro)."
-      );
-      return;
-    }
-    setBirthDate(parsed);
-    setDateError(null);
-  };
 
-  const handlePickerChange = (_: any, selected?: Date) => {
-    if (Platform.OS === "android") setShowPicker(false);
-    if (!selected) return;
-    const clamped = clampDate(selected, MIN_DATE, MAX_DATE);
-    setBirthDate(clamped);
-    setBirthText(formatBR(clamped));
     setDateError(null);
-  };
+  }
 
+  // ---- VALIDAR CAMPOS ----
   const validate = useCallback(
     (state?: { name: string; email: string; senha: string }) => {
       const n = state?.name ?? name;
       const e = state?.email ?? email;
       const s = state?.senha ?? senha;
 
-      const next: typeof errors = {};
-      next.name = n.trim() ? null : "Informe seu nome completo.";
-      next.email = /\S+@\S+\.\S+/.test(e.trim().toLowerCase())
-        ? null
-        : "Informe um e-mail válido (ex.: nome@dominio.com).";
-      next.senha =
-        s.length >= 6 ? null : "A senha deve ter pelo menos 6 caracteres.";
-      return next;
+      return {
+        name: n.trim() ? null : "Informe seu nome completo.",
+        email: /\S+@\S+\.\S+/.test(e.trim().toLowerCase())
+          ? null
+          : "Informe um e-mail válido.",
+        senha:
+          s.length >= 6 ? null : "A senha deve ter pelo menos 6 caracteres.",
+      };
     },
-    [name, email, senha, errors]
+    [name, email, senha]
   );
 
   useEffect(() => {
@@ -130,25 +129,23 @@ export default function RegisterScreen() {
 
   const formValid = !errors.name && !errors.email && !errors.senha;
 
+  // ---- SUBMIT ----
   const handleSubmit = async () => {
     setTouched({ name: true, email: true, senha: true });
-    validateAndNormalizeTextDate();
+
     const curErrors = validate();
     setErrors(curErrors);
-    if (curErrors.name || curErrors.email || curErrors.senha) {
+
+    if (curErrors.name || curErrors.email || curErrors.senha || dateError) {
       setApiInfo({
         type: "error",
-        message: "Por favor, corrija os campos destacados.",
-        status: undefined,
-        requestId: null,
+        message: "Por favor, revise os campos.",
       });
       return;
     }
 
     setLoading(true);
     setApiInfo(null);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
 
     try {
       const resp = await fetch(`${BASE_URL}/users`, {
@@ -159,51 +156,19 @@ export default function RegisterScreen() {
           name: name.trim(),
           password: senha,
           ...(role && { role }),
+          birthDate: birthText || null,
         }),
-        signal: controller.signal,
       });
 
-      const raw = await resp.text();
-      let data: any = {};
-      try {
-        data = raw ? JSON.parse(raw) : {};
-      } catch {}
-
-      const requestId =
-        resp.headers?.get?.("x-request-id") ||
-        resp.headers?.get?.("x-correlation-id") ||
-        null;
+      const data = await resp.json().catch(() => ({}));
 
       if (!resp.ok) {
-        let msg: any =
-          data?.message ||
-          data?.error ||
-          raw ||
-          "Não foi possível criar o usuário.";
-        if (Array.isArray(msg)) msg = msg[0];
-        if (resp.status === 409) msg = msg || "E-mail já cadastrado.";
-        else if (resp.status === 400)
-          msg = msg || "Dados inválidos. Verifique os campos.";
-        else if (resp.status >= 500)
-          msg = msg || "Falha no servidor. Tente mais tarde.";
         setApiInfo({
           type: "error",
-          status: resp.status,
-          message: String(msg),
-          requestId,
+          message: data?.message || "Erro ao criar usuário.",
         });
         return;
       }
-
-      const successMsg =
-        data?.message ||
-        "Usuário cadastrado com sucesso! Você será redirecionado para o login.";
-      setApiInfo({
-        type: "success",
-        status: resp.status,
-        message: successMsg,
-        requestId,
-      });
 
       router.replace({
         pathname: "/",
@@ -214,329 +179,433 @@ export default function RegisterScreen() {
         },
       });
     } catch (err: any) {
-      const cancelled = err?.name === "AbortError";
       setApiInfo({
         type: "error",
-        status: undefined,
-        message: cancelled
-          ? "Tempo de requisição esgotado."
-          : err?.message || "Falha no cadastro.",
-        requestId: null,
+        message: "Falha na conexão.",
       });
     } finally {
-      clearTimeout(timeout);
       setLoading(false);
     }
   };
 
+  // ============================
+  //          UI
+  // ============================
+
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
+    <SafeAreaView style={styles.safeArea}>
+      <Stack.Screen options={{ headerShown: false }} />
+
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <View style={styles.content}>
-          <Image
-            source={require("../images/logo.jpeg")}
-            style={styles.logo}
-            resizeMode="contain"
-          />
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            isSmallHeight && styles.scrollContentCompact,
+          ]}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.centerWrapper}>
+            <View style={[styles.card, isTablet && styles.cardTablet]}>
+              {/* LOGO */}
+              <Image
+                source={require("../images/logo.jpeg")}
+                style={[
+                  styles.logo,
+                  isSmallHeight && styles.logoSmall,
+                  isSmallWidth && styles.logoVerySmall,
+                  isTablet && styles.logoTablet,
+                ]}
+                resizeMode="contain"
+              />
 
-          <Text style={styles.title}>Criar Usuário</Text>
-
-          <View style={styles.rulesBox}>
-            <Text style={styles.rulesItem}>
-              • Preencha todos os campos obrigatórios.
-            </Text>
-            <Text style={styles.rulesItem}>
-              • E-mail válido (ex.: nome@dominio.com).
-            </Text>
-            <Text style={styles.rulesItem}>• Senha com 6+ caracteres.</Text>
-          </View>
-
-          <TextInput
-            style={[
-              styles.input,
-              touched.name && errors.name && styles.inputError,
-            ]}
-            placeholder="Nome completo *"
-            value={name}
-            onChangeText={(v) => {
-              setName(v);
-              setTouched((t) => ({ ...t, name: true }));
-            }}
-            autoCapitalize="words"
-            returnKeyType="next"
-            editable={!loading}
-          />
-          {touched.name && errors.name ? (
-            <Text style={styles.errorText}>{errors.name}</Text>
-          ) : (
-            <Text style={styles.helperText}>Como deseja ser chamado.</Text>
-          )}
-
-          <TextInput
-            style={[
-              styles.input,
-              touched.email && errors.email && styles.inputError,
-            ]}
-            placeholder="E-mail *"
-            value={email}
-            onChangeText={(v) => {
-              setEmail(v);
-              setTouched((t) => ({ ...t, email: true }));
-            }}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            returnKeyType="next"
-            editable={!loading}
-          />
-          {touched.email && errors.email ? (
-            <Text style={styles.errorText}>{errors.email}</Text>
-          ) : (
-            <Text style={styles.helperText}>Usaremos para seu acesso.</Text>
-          )}
-
-          <View
-            style={[
-              styles.input,
-              styles.inputRow,
-              touched.senha && errors.senha && styles.inputError,
-            ]}
-          >
-            <TextInput
-              style={{ flex: 1 }}
-              placeholder="Senha *"
-              value={senha}
-              onChangeText={(v) => {
-                setSenha(v);
-                setTouched((t) => ({ ...t, senha: true }));
-              }}
-              secureTextEntry={!showPassword}
-              returnKeyType="done"
-              editable={!loading}
-            />
-            <Pressable onPress={() => setShowPassword((p) => !p)} hitSlop={8}>
-              <Text style={styles.togglePwd}>
-                {showPassword ? "Ocultar" : "Mostrar"}
-              </Text>
-            </Pressable>
-          </View>
-          {touched.senha && errors.senha ? (
-            <Text style={styles.errorText}>{errors.senha}</Text>
-          ) : (
-            <Text style={styles.helperText}>Mínimo de 6 caracteres.</Text>
-          )}
-
-          <View style={styles.pickerContainer}>
-            <Text style={styles.pickerLabel}>Cargo na área de TI (opcional)</Text>
-            <View style={styles.pickerWrapper}>
-              <Picker
-                selectedValue={role}
-                onValueChange={(itemValue) => setRole(itemValue)}
-                enabled={!loading}
-                style={styles.picker}
+              <Text
+                style={[
+                  styles.title,
+                  isSmallHeight && styles.titleSmall,
+                  isTablet && styles.titleTablet,
+                ]}
               >
-                <Picker.Item label="Selecione um cargo (opcional)" value="" />
-                <Picker.Item label="Desenvolvedor Júnior" value="Desenvolvedor Júnior" />
-                <Picker.Item label="Desenvolvedor Pleno" value="Desenvolvedor Pleno" />
-                <Picker.Item label="Desenvolvedor Sênior" value="Desenvolvedor Sênior" />
-                <Picker.Item label="Tech Lead" value="Tech Lead" />
-                <Picker.Item label="Arquiteto de Software" value="Arquiteto de Software" />
-                <Picker.Item label="Engenheiro de Software" value="Engenheiro de Software" />
-                <Picker.Item label="Analista de Sistemas" value="Analista de Sistemas" />
-                <Picker.Item label="Analista de Dados" value="Analista de Dados" />
-                <Picker.Item label="Cientista de Dados" value="Cientista de Dados" />
-                <Picker.Item label="Engenheiro de Dados" value="Engenheiro de Dados" />
-                <Picker.Item label="Engenheiro de Machine Learning" value="Engenheiro de Machine Learning" />
-                <Picker.Item label="DevOps Engineer" value="DevOps Engineer" />
-                <Picker.Item label="SRE (Site Reliability Engineer)" value="SRE (Site Reliability Engineer)" />
-                <Picker.Item label="QA/Tester" value="QA/Tester" />
-                <Picker.Item label="Analista de QA" value="Analista de QA" />
-                <Picker.Item label="Designer UX/UI" value="Designer UX/UI" />
-                <Picker.Item label="Product Manager" value="Product Manager" />
-                <Picker.Item label="Scrum Master" value="Scrum Master" />
-                <Picker.Item label="Gerente de Projetos" value="Gerente de Projetos" />
-                <Picker.Item label="Analista de Segurança" value="Analista de Segurança" />
-                <Picker.Item label="Administrador de Sistemas" value="Administrador de Sistemas" />
-                <Picker.Item label="Administrador de Banco de Dados" value="Administrador de Banco de Dados" />
-                <Picker.Item label="Suporte Técnico" value="Suporte Técnico" />
-                <Picker.Item label="Estagiário" value="Estagiário" />
-                <Picker.Item label="Estudante" value="Estudante" />
-                <Picker.Item label="Outro" value="Outro" />
-              </Picker>
-            </View>
-            <Text style={styles.helperText}>Ajuda outros usuários a conhecê-lo melhor.</Text>
-          </View>
-
-          {showPicker && (
-            <DateTimePicker
-              value={birthDate || new Date(2000, 0, 1)}
-              mode="date"
-              display={Platform.OS === "ios" ? "spinner" : "default"}
-              onChange={handlePickerChange}
-              minimumDate={MIN_DATE}
-              maximumDate={MAX_DATE}
-            />
-          )}
-          {!!dateError && <Text style={styles.errorText}>{dateError}</Text>}
-
-          {!!apiInfo && (
-            <View
-              style={[
-                styles.feedbackBox,
-                apiInfo.type === "error"
-                  ? styles.feedbackError
-                  : styles.feedbackSuccess,
-              ]}
-            >
-              <Text style={styles.feedbackTitle}>
-                {apiInfo.type === "error" ? "Algo deu errado" : "Tudo certo"}
-                {typeof apiInfo.status === "number"
-                  ? ` • ${apiInfo.status}`
-                  : ""}
+                Criar Usuário
               </Text>
-              {!!apiInfo.message && (
-                <Text style={styles.feedbackText}>{apiInfo.message}</Text>
-              )}
-              {!!apiInfo.requestId && (
-                <Text style={styles.feedbackMeta}>
-                  Req ID: {apiInfo.requestId}
+
+              {/* REGRAS */}
+              <View style={styles.rulesBox}>
+                <Text style={styles.rulesItem}>
+                  • Preencha todos os campos.
                 </Text>
+                <Text style={styles.rulesItem}>• E-mail válido.</Text>
+                <Text style={styles.rulesItem}>• Senha de 6+ caracteres.</Text>
+              </View>
+
+              {/* NOME */}
+              <TextInput
+                style={[
+                  styles.input,
+                  touched.name && errors.name && styles.inputError,
+                ]}
+                placeholder="Nome completo *"
+                value={name}
+                onChangeText={(v) => {
+                  setName(v);
+                  setTouched((t) => ({ ...t, name: true }));
+                }}
+              />
+              {touched.name && errors.name && (
+                <Text style={styles.errorText}>{errors.name}</Text>
               )}
-            </View>
-          )}
 
-          <TouchableOpacity
-            style={[styles.button, (loading || !formValid) && { opacity: 0.6 }]}
-            onPress={handleSubmit}
-            disabled={loading || !formValid}
-          >
-            {loading ? (
-              <ActivityIndicator />
-            ) : (
-              <Text style={styles.buttonText}>
-                {formValid ? "Criar conta" : "Preencha os campos"}
+              {/* EMAIL */}
+              <TextInput
+                style={[
+                  styles.input,
+                  touched.email && errors.email && styles.inputError,
+                ]}
+                placeholder="E-mail *"
+                value={email}
+                onChangeText={(v) => {
+                  setEmail(v);
+                  setTouched((t) => ({ ...t, email: true }));
+                }}
+                keyboardType="email-address"
+              />
+              {touched.email && errors.email && (
+                <Text style={styles.errorText}>{errors.email}</Text>
+              )}
+
+              {/* SENHA */}
+              <View
+                style={[
+                  styles.input,
+                  styles.inputRow,
+                  touched.senha && errors.senha && styles.inputError,
+                ]}
+              >
+                <TextInput
+                  style={{ flex: 1 }}
+                  placeholder="Senha *"
+                  secureTextEntry={!showPassword}
+                  value={senha}
+                  onChangeText={(v) => {
+                    setSenha(v);
+                    setTouched((t) => ({ ...t, senha: true }));
+                  }}
+                />
+                <Pressable onPress={() => setShowPassword(!showPassword)}>
+                  <Text style={styles.togglePwd}>
+                    {showPassword ? "Ocultar" : "Mostrar"}
+                  </Text>
+                </Pressable>
+              </View>
+              {touched.senha && errors.senha && (
+                <Text style={styles.errorText}>{errors.senha}</Text>
+              )}
+
+              {/* DATA DIGITADA */}
+              <Text style={styles.pickerLabel}>
+                Data de nascimento (opcional)
               </Text>
-            )}
-          </TouchableOpacity>
+              <TextInput
+                style={[styles.input, dateError && styles.inputError]}
+                placeholder="DD/MM/AAAA"
+                keyboardType="numeric"
+                maxLength={10}
+                value={birthText}
+                onChangeText={(v) => {
+                  let txt = v.replace(/\D/g, "");
 
-          <TouchableOpacity
-            style={styles.secondaryAction}
-            onPress={() => router.replace("/")}
-            disabled={loading}
-          >
-            <Text style={styles.secondaryActionText}>
-              Já tenho conta • Ir para Login
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+                  if (txt.length >= 3 && txt.length <= 4)
+                    txt = txt.replace(/(\d{2})(\d{1,2})/, "$1/$2");
+                  else if (txt.length > 4)
+                    txt = txt.replace(/(\d{2})(\d{2})(\d{1,4})/, "$1/$2/$3");
+
+                  setBirthText(txt);
+                  validateBirthDate(txt);
+                }}
+              />
+
+              {!!dateError && <Text style={styles.errorText}>{dateError}</Text>}
+
+              {/* PROFISSÃO */}
+              <Text style={styles.pickerLabel}>
+                Cargo na área de TI (opcional)
+              </Text>
+
+              <Pressable
+                style={styles.input}
+                onPress={() => setRoleModalVisible(true)}
+              >
+                <Text style={{ color: role ? "#111" : "#777" }}>
+                  {role || "Selecionar cargo"}
+                </Text>
+              </Pressable>
+
+              <Modal
+                visible={roleModalVisible}
+                transparent
+                animationType="fade"
+              >
+                <View style={styles.overlay}>
+                  <Pressable
+                    style={styles.backdrop}
+                    onPress={() => setRoleModalVisible(false)}
+                  />
+
+                  <View
+                    style={[
+                      styles.modalCard,
+                      isTablet && styles.modalCardTablet,
+                    ]}
+                  >
+                    <Text style={styles.modalTitle}>Selecione seu cargo</Text>
+
+                    <ScrollView style={{ maxHeight: 350 }}>
+                      {ROLE_OPTIONS.map((item) => (
+                        <Pressable
+                          key={item}
+                          style={[
+                            styles.modalItem,
+                            item === role && styles.modalItemSelected,
+                          ]}
+                          onPress={() => {
+                            setRole(item);
+                            setRoleModalVisible(false);
+                          }}
+                        >
+                          <Text style={styles.modalItemText}>
+                            {item || "Nenhum / Prefiro não informar"}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+
+                    <TouchableOpacity
+                      style={styles.closeButton}
+                      onPress={() => setRoleModalVisible(false)}
+                    >
+                      <Text style={styles.closeText}>Fechar</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </Modal>
+
+              {/* FEEDBACK */}
+              {apiInfo && (
+                <View
+                  style={[
+                    styles.feedbackBox,
+                    apiInfo.type === "error"
+                      ? styles.feedbackError
+                      : styles.feedbackSuccess,
+                  ]}
+                >
+                  <Text style={styles.feedbackTitle}>{apiInfo.message}</Text>
+                </View>
+              )}
+
+              {/* BOTÃO */}
+              <TouchableOpacity
+                style={[
+                  styles.button,
+                  (!formValid || loading) && { opacity: 0.6 },
+                ]}
+                disabled={!formValid || loading || !!dateError}
+                onPress={handleSubmit}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.buttonText}>Criar conta</Text>
+                )}
+              </TouchableOpacity>
+
+              {/* LOGIN */}
+              <TouchableOpacity
+                style={styles.secondaryAction}
+                onPress={() => router.replace("/")}
+              >
+                <Text style={styles.secondaryActionText}>
+                  Já tenho conta • Ir para Login
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
+/* =====================
+       STYLES
+===================== */
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  safeArea: { flex: 1, backgroundColor: "#f5f5f5" },
+  container: { flex: 1 },
   scrollContent: { flexGrow: 1, paddingHorizontal: 24, paddingVertical: 16 },
-  content: {
-    flexGrow: 1,
-    maxWidth: 520,
+  scrollContentCompact: { paddingVertical: 8 },
+  centerWrapper: { flex: 1, alignItems: "center", justifyContent: "center" },
+
+  card: {
     width: "100%",
-    alignSelf: "center",
-    alignItems: "stretch",
+    maxWidth: 420,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 22,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  logo: { width: "100%", height: undefined, aspectRatio: 3, marginBottom: 8 },
+
+  cardTablet: {
+    maxWidth: 500,
+    padding: 26,
+  },
+
+  // --- LOGO ---
+  logo: {
+    width: "55%",
+    alignSelf: "center",
+    aspectRatio: 3,
+    marginBottom: 20,
+  },
+  logoSmall: { width: "48%" },
+  logoVerySmall: { width: "42%" },
+  logoTablet: { width: "40%" },
+
+  // --- TITLE ---
   title: {
     fontSize: 28,
-    fontWeight: "bold",
-    marginBottom: 10,
+    fontWeight: "700",
     textAlign: "center",
+    marginBottom: 18,
+    color: "#111",
   },
-  rulesBox: {
-    width: "100%",
-    backgroundColor: "#f6f8ff",
-    borderColor: "#e0e6ff",
-    borderWidth: 1,
-    padding: 10,
-    borderRadius: 10,
-    marginBottom: 10,
+  titleSmall: {
+    fontSize: 24,
+    marginBottom: 14,
   },
-  rulesItem: { color: "#2f3b66", fontSize: 13 },
+  titleTablet: {
+    fontSize: 32,
+    marginBottom: 24,
+  },
 
+  // --- RULES ---
+  rulesBox: {
+    backgroundColor: "#eef2ff",
+    borderWidth: 1,
+    borderColor: "#c7d2fe",
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 14,
+  },
+  rulesItem: { color: "#374151", fontSize: 14 },
+
+  // --- INPUTS ---
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: "#d1d5db",
     padding: 12,
-    width: "100%",
-    borderRadius: 8,
-    marginBottom: 6,
+    borderRadius: 10,
     backgroundColor: "#fff",
-  },
-  inputRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  inputError: { borderColor: "#ff9aa2", backgroundColor: "#fff6f7" },
-
-  helperText: {
-    color: "#697386",
-    alignSelf: "flex-start",
     marginBottom: 8,
-    fontSize: 12,
-  },
-  errorText: {
-    color: "#a10000",
-    alignSelf: "flex-start",
-    marginBottom: 8,
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 15,
   },
 
-  feedbackBox: {
-    width: "100%",
-    borderWidth: 1,
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 12,
-  },
-  feedbackError: { borderColor: "#ffb3b3", backgroundColor: "#ffe6e6" },
-  feedbackSuccess: { borderColor: "#b3ffd4", backgroundColor: "#e6fff1" },
-  feedbackTitle: { fontWeight: "700", marginBottom: 4 },
-  feedbackText: { color: "#2d2d2d" },
-  feedbackMeta: { marginTop: 6, fontSize: 12, color: "#616161" },
+  inputRow: { flexDirection: "row", alignItems: "center" },
 
-  button: {
-    backgroundColor: "#007bff",
-    padding: 15,
-    borderRadius: 8,
-    marginTop: 8,
-    width: "100%",
-    alignItems: "center",
-  },
-  buttonText: { color: "#fff", textAlign: "center", fontWeight: "bold" },
-  togglePwd: { color: "#007bff", fontWeight: "600" },
+  togglePwd: { color: "#2563eb", fontWeight: "600" },
 
-  secondaryAction: { marginTop: 14, marginBottom: 8 },
-  secondaryActionText: { color: "#007bff", fontWeight: "600" },
-
-  pickerContainer: { marginBottom: 12, width: "100%" },
   pickerLabel: {
-    fontSize: 14,
+    marginTop: 6,
+    marginBottom: 4,
     fontWeight: "600",
-    color: "#2f3b66",
-    marginBottom: 6,
+    color: "#111",
+    fontSize: 14,
   },
-  pickerWrapper: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
+
+  // --- ERROR ---
+  errorText: { color: "#b10000", fontSize: 12, marginBottom: 6 },
+  inputError: { borderColor: "#ff9aa2", backgroundColor: "#fff4f4" },
+
+  // --- MODAL ---
+  overlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  backdrop: { ...StyleSheet.absoluteFillObject },
+
+  modalCard: {
     backgroundColor: "#fff",
-    overflow: "hidden",
+    borderRadius: 16,
+    padding: 18,
+    maxHeight: "80%",
   },
-  picker: {
-    width: "100%",
-    height: Platform.OS === "ios" ? 200 : 50,
+
+  modalCardTablet: {
+    maxWidth: 500,
+    alignSelf: "center",
+  },
+
+  modalTitle: { fontWeight: "700", fontSize: 18, textAlign: "center" },
+
+  modalItem: {
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    borderRadius: 8,
+  },
+  modalItemSelected: {
+    backgroundColor: "#e0e7ff",
+  },
+  modalItemText: { fontSize: 15 },
+
+  closeButton: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  closeText: { textAlign: "center", color: "#2563eb", fontWeight: "600" },
+
+  // --- FEEDBACK ---
+  feedbackBox: {
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 14,
+    borderWidth: 1,
+  },
+  feedbackError: {
+    borderColor: "#ffb3b3",
+    backgroundColor: "#ffe6e6",
+  },
+  feedbackSuccess: {
+    borderColor: "#b3ffd4",
+    backgroundColor: "#e6fff1",
+  },
+  feedbackTitle: { fontWeight: "700", fontSize: 14 },
+
+  // --- BUTTON ---
+  button: {
+    backgroundColor: "#2563eb",
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  buttonText: { color: "#fff", fontSize: 16, fontWeight: "700" },
+
+  // --- SECONDARY ---
+  secondaryAction: { marginTop: 16 },
+  secondaryActionText: {
+    textAlign: "center",
+    color: "#2563eb",
+    fontWeight: "600",
   },
 });
