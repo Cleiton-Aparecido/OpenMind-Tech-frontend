@@ -9,7 +9,7 @@ if (!ANDROID_URL && !IOS_URL) {
   );
 }
 
-export const BASE_URL =
+export const BASE_URL = "http://localhost:3000";
   Platform.OS === "android"
     ? ANDROID_URL ?? IOS_URL ?? "http://10.0.2.2:3010"
     : IOS_URL ?? ANDROID_URL ?? "http://localhost:3010";

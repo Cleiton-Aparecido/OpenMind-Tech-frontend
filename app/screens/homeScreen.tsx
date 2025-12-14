@@ -1,3 +1,4 @@
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { BASE_URL } from "@/env";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
@@ -21,6 +22,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
 
 type Post = {
   id: string;
@@ -136,11 +138,21 @@ export default function Home() {
     }, [])
   );
 
+  const user = useCurrentUser();
+  
   const goEditProfile = () => {
-    setProfileOpen(false);
-    // @ts-ignore - rota dinâmica
-    router.push("/(tabs)/edit-profile");
-  };
+  if (!user?.id) {
+    // opcional: tratar caso ainda não tenha carregado o usuário
+    return;
+  }
+
+  setProfileOpen(false);
+
+  router.push({
+    pathname: "/users/[id]/edit",
+    params: { id: String(user.id) },
+  });
+};
 
   const renderTag = (t: string, idx: number) => (
     <View key={`${t}-${idx}`} style={styles.tag}>
