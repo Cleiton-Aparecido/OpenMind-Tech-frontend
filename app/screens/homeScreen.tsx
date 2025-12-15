@@ -9,6 +9,7 @@ import {
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert, // ✅ ADICIONADO
   FlatList,
   Image,
   Modal,
@@ -18,6 +19,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput, // ✅ ADICIONADO
   TouchableOpacity,
   View,
 } from "react-native";
@@ -35,8 +37,23 @@ type Post = {
   imageUrl?: string;
   images?: string[];
   edit?: boolean; // 👈 vem do back
-  likesCount?: number; 
-  hasLiked?: boolean; 
+  likesCount?: number;
+  hasLiked?: boolean;
+
+  // ✅ ADICIONADO (se o backend mandar, aparece; se não, fica 0)
+  commentsCount?: number;
+};
+
+// ✅ ADICIONADO: tipo do comentário
+type Comment = {
+  id: string;
+  feedId: string;
+  userId: string;
+  userName?: string;
+  content: string;
+  createdAt?: string;
+  updatedAt?: string;
+  edit?: boolean;
 };
 
 export default function Home() {
@@ -57,6 +74,15 @@ export default function Home() {
 
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [likingPosts, setLikingPosts] = useState<Set<string>>(new Set());
+
+  // ✅ ADICIONADO: estados do modal de comentários
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentsPostId, setCommentsPostId] = useState<string | null>(null);
+  const [commentsPostTitle, setCommentsPostTitle] = useState<string>("");
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const [sendingComment, setSendingComment] = useState(false);
 
   const { flashType, flashTitle, flashMessage, refresh } =
     useLocalSearchParams<{
@@ -100,7 +126,7 @@ export default function Home() {
       if (!res.ok) throw new Error(`Erro ${res.status}`);
       const json = await res.json();
       const postsData = Array.isArray(json?.data) ? json.data : [];
-      
+
       console.log("Posts recebidos:", postsData.length, "posts");
       console.log("Verificando imagens nos posts:");
       postsData.forEach((p: any) => {
@@ -108,11 +134,11 @@ export default function Home() {
           console.log(`Post ID ${p.id}:`, {
             hasImageUrl: !!p.imageUrl,
             imageUrlPreview: p.imageUrl ? p.imageUrl.substring(0, 100) : null,
-            imagesCount: p.images?.length || 0
+            imagesCount: p.images?.length || 0,
           });
         }
       });
-      
+
       setPosts(postsData);
     } catch (e: any) {
       setError(e?.message ?? "Falha ao carregar o feed");
@@ -231,9 +257,7 @@ export default function Home() {
           const data = raw ? JSON.parse(raw) : {};
           msg = data?.message || data?.error || raw || msg;
           if (Array.isArray(msg)) msg = msg[0];
-        } catch (e) {
-          
-        }
+        } catch (e) {}
 
         throw new Error(
           typeof msg === "string" ? msg : "Falha ao excluir post"
@@ -260,7 +284,7 @@ export default function Home() {
   };
 
   const handleLike = async (postId: string) => {
-
+    console.log("like");
     if (likingPosts.has(postId)) {
       return;
     }
@@ -302,6 +326,8 @@ export default function Home() {
         },
       });
 
+      console.log(response);
+
       if (!response.ok) {
         setPosts((prevPosts) =>
           prevPosts.map((post) => {
@@ -321,7 +347,7 @@ export default function Home() {
 
         throw new Error("Falha ao curtir post");
       }
-      
+
       const data = await response.json();
       console.log("Like response:", data);
     } catch (err: any) {
@@ -337,6 +363,124 @@ export default function Home() {
         next.delete(postId);
         return next;
       });
+    }
+  };
+
+  // ✅ ADICIONADO: comentários (open, close, fetch, send)
+  const openComments = async (post: Post) => {
+    setCommentsPostId(post.id);
+    setCommentsPostTitle(post.title);
+    setCommentsOpen(true);
+    setCommentText("");
+    await fetchComments(post.id);
+  };
+
+  const closeComments = () => {
+    setCommentsOpen(false);
+    setCommentsPostId(null);
+    setCommentsPostTitle("");
+    setComments([]);
+    setCommentText("");
+  };
+
+  const fetchComments = async (feedId: string) => {
+    try {
+      setCommentsLoading(true);
+
+      const token = await AsyncStorage.getItem("userToken");
+      if (!token) {
+        setComments([]);
+        return;
+      }
+
+      const res = await fetch(
+        `${BASE_URL}/feed/${feedId}/comments?page=1&limit=50`,
+        {
+          headers: {
+            Accept: "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!res.ok) {
+        const raw = await res.text();
+        throw new Error(raw || `Erro ${res.status}`);
+      }
+
+      const json = await res.json();
+      setComments(Array.isArray(json?.data) ? json.data : []);
+    } catch (e: any) {
+      Alert.alert(
+        "Erro",
+        e?.message || "Não foi possível carregar comentários."
+      );
+    } finally {
+      setCommentsLoading(false);
+    }
+  };
+
+  const sendComment = async () => {
+    const feedId = commentsPostId;
+    const text = commentText.trim();
+
+    if (!feedId) return;
+    if (!text) {
+      Alert.alert("Atenção", "Digite um comentário.");
+      return;
+    }
+    if (sendingComment) return;
+
+    try {
+      setSendingComment(true);
+
+      const token = await AsyncStorage.getItem("userToken");
+      if (!token) {
+        Alert.alert("Erro", "Você precisa estar logado para comentar.");
+        return;
+      }
+
+      const res = await fetch(`${BASE_URL}/feed/${feedId}/comments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ content: text }),
+      });
+
+      const raw = await res.text();
+      if (!res.ok) {
+        let msg: any = raw || "Falha ao comentar";
+        try {
+          const data = raw ? JSON.parse(raw) : {};
+          msg = data?.message || data?.error || msg;
+          if (Array.isArray(msg)) msg = msg[0];
+        } catch {}
+        throw new Error(msg);
+      }
+
+      setCommentText("");
+
+      // ✅ Atualiza lista
+      await fetchComments(feedId);
+
+      // ✅ Atualiza contador local (se existir)
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === feedId
+            ? { ...p, commentsCount: (p.commentsCount || 0) + 1 }
+            : p
+        )
+      );
+    } catch (e: any) {
+      Alert.alert(
+        "Erro",
+        e?.message || "Não foi possível enviar o comentário."
+      );
+    } finally {
+      setSendingComment(false);
     }
   };
 
@@ -441,7 +585,13 @@ export default function Home() {
               source={{ uri: item.imageUrl }}
               style={styles.postMainImage}
               resizeMode="cover"
-              onError={(e) => console.log("Erro ao carregar imagem:", item.imageUrl, e.nativeEvent.error)}
+              onError={(e) =>
+                console.log(
+                  "Erro ao carregar imagem:",
+                  item.imageUrl,
+                  e.nativeEvent.error
+                )
+              }
             />
           </View>
         )}
@@ -472,26 +622,47 @@ export default function Home() {
           </View>
         )}
 
-
         <View style={styles.likeSection}>
           <TouchableOpacity
             style={[
               styles.likeButton,
               item.hasLiked && { backgroundColor: "#E0F2FE" },
-              likingPosts.has(item.id) && { opacity: 0.5 }
+              likingPosts.has(item.id) && { opacity: 0.5 },
             ]}
             onPress={() => handleLike(item.id)}
             activeOpacity={0.7}
             disabled={likingPosts.has(item.id)}
           >
-            <Text style={[styles.likeIcon, item.hasLiked && styles.likeIconActive]}>
+            <Text
+              style={[styles.likeIcon, item.hasLiked && styles.likeIconActive]}
+            >
               {item.hasLiked ? "👍" : "👍"}
             </Text>
             {(item.likesCount ?? 0) > 0 && (
-              <Text style={[styles.likesCount, item.hasLiked && styles.likeTextActive]}>
+              <Text
+                style={[
+                  styles.likesCount,
+                  item.hasLiked && styles.likeTextActive,
+                ]}
+              >
                 {item.likesCount}
               </Text>
             )}
+          </TouchableOpacity>
+        </View>
+
+        {/* ✅ ADICIONADO: botão Comentários (sem remover nada) */}
+        <View style={styles.commentSection}>
+          <TouchableOpacity
+            style={styles.commentButton}
+            onPress={() => openComments(item)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.commentIcon}>💬</Text>
+            <Text style={styles.commentBtnText}>
+              Comentários
+              {(item.commentsCount ?? 0) > 0 ? ` (${item.commentsCount})` : ""}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -500,7 +671,6 @@ export default function Home() {
 
   return (
     <SafeAreaView style={styles.safe}>
-
       <View style={styles.header}>
         <View style={styles.brandLeft}>
           <Image
@@ -549,10 +719,10 @@ export default function Home() {
           <Text style={styles.hello}>Olá, Dev!</Text>
           <Text style={styles.subtitle}>Continue seu progresso!</Text>
         </View>
-        <View style={styles.levelBox}>
+        {/* <View style={styles.levelBox}>
           <Text style={styles.levelNumber}>12</Text>
           <Text style={styles.levelLabel}>Nível</Text>
-        </View>
+        </View> */}
       </View>
 
       {/* FEED */}
@@ -637,6 +807,91 @@ export default function Home() {
         </View>
       </Modal>
       {/* ======================== */}
+
+      {/* ✅ ADICIONADO: MODAL COMENTÁRIOS */}
+      <Modal
+        visible={commentsOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={closeComments}
+      >
+        <Pressable style={styles.backdrop} onPress={closeComments} />
+
+        <View style={styles.commentsSheet}>
+          <View style={styles.commentsHeader}>
+            <Text style={styles.commentsTitle}>Comentários</Text>
+            <TouchableOpacity onPress={closeComments}>
+              <Text style={styles.commentsClose}>Fechar</Text>
+            </TouchableOpacity>
+          </View>
+
+          {!!commentsPostTitle && (
+            <Text style={styles.commentsPostTitle} numberOfLines={1}>
+              {commentsPostTitle}
+            </Text>
+          )}
+
+          {commentsLoading ? (
+            <View style={styles.commentsCenter}>
+              <ActivityIndicator />
+              <Text style={styles.centerText}>Carregando comentários…</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={comments}
+              keyExtractor={(c) => c.id}
+              style={{ flex: 1 }}
+              contentContainerStyle={{ paddingBottom: 92 }}
+              ListEmptyComponent={
+                <View style={styles.empty}>
+                  <Text style={styles.emptyText}>Nenhum comentário ainda.</Text>
+                </View>
+              }
+              renderItem={({ item: c }) => (
+                <View style={styles.commentItem}>
+                  <View style={styles.commentTopRow}>
+                    <Text style={styles.commentAuthor}>
+                      {c.userName || "Usuário"}
+                    </Text>
+                    <Text style={styles.commentDate}>
+                      {c.createdAt
+                        ? new Date(c.createdAt).toLocaleString()
+                        : ""}
+                    </Text>
+                  </View>
+                  <Text style={styles.commentBody}>{c.content}</Text>
+                </View>
+              )}
+            />
+          )}
+
+          <View style={styles.commentComposer}>
+            <TextInput
+              value={commentText}
+              onChangeText={setCommentText}
+              placeholder="Escreva um comentário..."
+              style={styles.commentInput}
+              editable={!sendingComment}
+              multiline
+            />
+            <TouchableOpacity
+              style={[
+                styles.commentSendBtn,
+                sendingComment && { opacity: 0.6 },
+              ]}
+              onPress={sendComment}
+              disabled={sendingComment}
+            >
+              {sendingComment ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.commentSendText}>Enviar</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+      {/* ============================ */}
     </SafeAreaView>
   );
 }
@@ -825,7 +1080,6 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 16, fontWeight: "800", color: "#0F172A" },
   cardDesc: { color: "#334155", marginTop: 6, lineHeight: 20 },
 
-  // botão ler mais / ler menos
   readMoreBtn: {
     marginTop: 4,
     alignSelf: "flex-start",
@@ -863,7 +1117,6 @@ const styles = StyleSheet.create({
   empty: { alignItems: "center", marginTop: 48 },
   emptyText: { color: "#475569" },
 
-  /* FAB */
   fab: {
     position: "absolute",
     right: 20,
@@ -879,7 +1132,6 @@ const styles = StyleSheet.create({
   },
   fabText: { color: "#fff", fontWeight: "800" },
 
-  /* Modal perfil */
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.35)",
@@ -914,7 +1166,6 @@ const styles = StyleSheet.create({
   },
   cancelText: { color: "#64748B", fontWeight: "600" },
 
-  // Estilos para imagens nos posts
   postImageContainer: {
     marginTop: 12,
     borderRadius: 12,
@@ -981,4 +1232,105 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#475569",
   },
+
+  // ✅ ADICIONADO: estilos comentários
+  commentSection: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+  },
+  commentButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: "#F8FAFC",
+    alignSelf: "flex-start",
+  },
+  commentIcon: {
+    fontSize: 18,
+    opacity: 0.85,
+  },
+  commentBtnText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#334155",
+  },
+
+  commentsSheet: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    maxHeight: "85%",
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  commentsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  commentsTitle: { fontSize: 16, fontWeight: "800", color: "#0F172A" },
+  commentsClose: { color: "#0EA5E9", fontWeight: "800" },
+  commentsPostTitle: {
+    marginTop: 6,
+    marginBottom: 10,
+    color: "#64748B",
+    fontWeight: "600",
+  },
+  commentsCenter: { paddingVertical: 24, alignItems: "center" },
+
+  commentItem: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+  },
+  commentTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 4,
+  },
+  commentAuthor: { fontWeight: "800", color: "#0F172A" },
+  commentDate: { color: "#94A3B8", fontSize: 12, fontWeight: "600" },
+  commentBody: { color: "#334155", lineHeight: 20 },
+
+  commentComposer: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    bottom: 16,
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "flex-end",
+  },
+  commentInput: {
+    flex: 1,
+    minHeight: 44,
+    maxHeight: 120,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: "#fff",
+  },
+  commentSendBtn: {
+    backgroundColor: "#0EA5E9",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    minWidth: 88,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  commentSendText: { color: "#fff", fontWeight: "800" },
 });
