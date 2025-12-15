@@ -158,12 +158,15 @@ hooks/                 # Custom hooks
 
 ## Funcionalidades
 
-- [ ] Sistema de pontuação
-- [ ] Conquistas e badges
-- [ ] Perfil de usuário completo
-- [ ] Comentários em publicações
-- [ ] Busca e filtros avançados
-- [ ] Notificações push
+- [ ] Login
+- [ ] Criação de usuário
+- [ ] Criação de publicação
+- [ ] Excluir publicação
+- [ ] Editar publicação
+- [ ] Selecionar imagem para publicação
+- [ ] Curtir publicação
+- [ ] Comentar em publicação
+- [ ] Usuário pode selecionar sua profissão
 
 ---
 
