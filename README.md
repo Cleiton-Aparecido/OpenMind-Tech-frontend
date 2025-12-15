@@ -52,20 +52,123 @@ Join our community of developers creating universal apps.
 
 --- 
 
-## Nome do Projeto:  OpenMind Tech
+## OpenMind Tech - Frontend
 
-### Objetivo do projeto:
+### Objetivo do Projeto
 
-Desenvolver um app mobile voltado ao aprendizado de conteúdos na área da tecnologia da informação. O aplicativo terá interação com o usuário, de exercícios de forma gamificada. O App será desenvolvido com o uso de tecnologias: TypeScript, Expo, NextJS, Expo Router.
+Desenvolver um aplicativo mobile voltado ao aprendizado de conteúdos na área de tecnologia da informação. O app oferece interação gamificada com exercícios, quizzes e um feed social para compartilhamento de conhecimento entre profissionais de TI.
 
-### Público Alvo: 
+### Público-Alvo
 
-Profissionais da área da tecnologia da informação.
+Profissionais e estudantes da área de tecnologia da informação que buscam aprimorar seus conhecimentos de forma interativa e colaborativa.
 
-### Funcionalidades: 
+---
 
-O usuário pode criar quizzes, exercícios, charadas e tópicos relacionado a um campo específico da área da computação.
+## Funcionalidades Implementadas
 
-**integrantes:** Cleiton, Pedro Mesquita, Nycollas Machado e Vinicius Lima.
+### Autenticação
+- **Cadastro de usuários** com validação de dados
+- **Login seguro** com JWT
+- **Proteção de rotas** - acesso apenas para usuários autenticados
 
-Projeto em desenvolvimento...
+### Feed Social
+- **Visualização de publicações** de outros usuários
+- **Sistema de likes** com atualização em tempo real
+  - Contador de curtidas
+  - Indicador visual quando o usuário curtiu
+  - Prevenção de múltiplos cliques
+- **Criação de posts** com:
+  - Título e conteúdo
+  - Upload de imagens
+  - Tags categorizadas
+- **Edição e exclusão** de publicações próprias
+- **Sistema de paginação** e refresh
+- **Indicador de progresso** com níveis gamificados
+
+### Interface do Usuário
+- Design moderno e responsivo
+- Componentes reutilizáveis e temáticos
+- Feedback visual com mensagens flash
+- Animações e transições suaves
+- Suporte a modo claro/escuro
+- Navegação por abas intuitiva
+
+### Recursos Técnicos
+- **Upload de imagens** com preview
+- **Máscaras de input** para CPF e telefone
+- **Validação de formulários** em tempo real
+- **Gerenciamento de estado** otimizado
+- **Cache de dados** com AsyncStorage
+
+---
+
+## Tecnologias Utilizadas
+
+- **TypeScript** - Tipagem estática e segurança de código
+- **React Native** - Framework para desenvolvimento mobile
+- **Expo** - Plataforma de desenvolvimento e build
+- **Expo Router** - Navegação file-based
+- **AsyncStorage** - Persistência local de dados
+- **React Navigation** - Navegação avançada
+
+### Principais Dependências
+
+```json
+{
+  "expo": "~53.0.22",
+  "react": "19.0.0",
+  "react-native": "0.79.6",
+  "expo-router": "~5.1.5",
+  "expo-image": "~2.4.0",
+  "react-native-gesture-handler": "~2.24.0",
+  "react-native-reanimated": "~3.17.4",
+  "react-native-mask-input": "^1.2.3"
+}
+```
+
+---
+
+## Estrutura do Projeto
+
+```
+app/
+├── (tabs)/              # Navegação principal
+│   ├── index.tsx        # Feed/Home
+│   ├── explore.tsx      # Explorar
+│   └── create-post.tsx  # Criar publicação
+├── screens/             # Telas standalone
+│   ├── LoginScreen.tsx
+│   ├── RegisterScreen.tsx
+│   └── homeScreen.tsx
+├── images/             # Assets de imagens
+└── _layout.tsx         # Layout raiz
+
+components/             # Componentes reutilizáveis
+├── ui/                # Componentes de UI base
+└── ThemedText.tsx     # Componentes temáticos
+
+constants/             # Constantes e configurações
+└── Colors.ts          # Paleta de cores
+
+hooks/                 # Custom hooks
+└── useThemeColor.ts   # Hook de tema
+```
+
+---
+
+## Funcionalidades
+
+- [ ] Sistema de pontuação
+- [ ] Conquistas e badges
+- [ ] Perfil de usuário completo
+- [ ] Comentários em publicações
+- [ ] Busca e filtros avançados
+- [ ] Notificações push
+
+---
+
+## Equipe
+
+**Integrantes:** Cleiton Aparecido, Pedro Mesquita, Nycollas Machado e Vinicius Lima
+
+---
