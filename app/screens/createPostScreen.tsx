@@ -4,23 +4,24 @@ import * as ImagePicker from "expo-image-picker";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 export default function CreatePostScreen() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
   const [images, setImages] = useState<string[]>([]);
 
@@ -119,6 +120,61 @@ export default function CreatePostScreen() {
     }
   }
 
+  async function uploadImageToBackend(localUri: string): Promise<string | null> {
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      if (!token) {
+        Alert.alert("Erro", "Você precisa estar logado para fazer upload de imagens.");
+        return null;
+      }
+
+      // Converter URI local para base64
+      const response = await fetch(localUri);
+      const blob = await response.blob();
+      
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          try {
+            const base64String = reader.result as string;
+            
+            // Enviar para o backend
+            const uploadResponse = await fetch(`${BASE_URL}/feed/upload-image`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+              body: JSON.stringify({ image: base64String }),
+            });
+
+            if (!uploadResponse.ok) {
+              throw new Error("Falha no upload da imagem");
+            }
+
+            const data = await uploadResponse.json();
+            console.log("Upload response:", data);
+            
+            if (!data.imageUrl) {
+              throw new Error("Backend não retornou imageUrl");
+            }
+            
+            resolve(data.imageUrl); // URL em Base64 retornada pelo backend
+          } catch (error) {
+            console.error("Erro no upload:", error);
+            reject(error);
+          }
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error("Erro ao fazer upload da imagem:", error);
+      Alert.alert("Erro", "Não foi possível fazer upload da imagem.");
+      return null;
+    }
+  }
+
   async function pickImage() {
     try {
       const hasPermission = await requestGalleryPermission();
@@ -132,9 +188,28 @@ export default function CreatePostScreen() {
       });
 
       if (!result.canceled && result.assets[0]) {
-        setImageUrl(result.assets[0].uri);
+        setUploadingImage(true);
+        
+        // Mostrar preview com URI local temporariamente
+        const localUri = result.assets[0].uri;
+        setImageUrl(localUri);
+        
+        // Fazer upload e substituir por Base64
+        const base64Url = await uploadImageToBackend(localUri);
+        console.log("Base64 URL recebida:", base64Url);
+        
+        if (base64Url) {
+          setImageUrl(base64Url);
+          console.log("Imagem principal atualizada com Base64");
+        } else {
+          setImageUrl(""); // Limpar se falhar
+          Alert.alert("Aviso", "Falha ao fazer upload da imagem principal");
+        }
+        
+        setUploadingImage(false);
       }
     } catch (error) {
+      setUploadingImage(false);
       Alert.alert("Erro", "Não foi possível selecionar a imagem.");
     }
   }
@@ -151,10 +226,25 @@ export default function CreatePostScreen() {
       });
 
       if (!result.canceled && result.assets) {
-        const uris = result.assets.map((asset: any) => asset.uri);
-        setImages(uris);
+        setUploadingImage(true);
+        
+        const localUris = result.assets.map((asset: any) => asset.uri);
+        
+        // Mostrar preview com URIs locais temporariamente
+        setImages(localUris);
+        
+        // Fazer upload de todas as imagens e substituir por Base64
+        const uploadPromises = localUris.map(uri => uploadImageToBackend(uri));
+        const base64Urls = await Promise.all(uploadPromises);
+        
+        // Filtrar apenas as que tiveram sucesso
+        const validUrls = base64Urls.filter(url => url !== null) as string[];
+        setImages(validUrls);
+        
+        setUploadingImage(false);
       }
     } catch (error) {
+      setUploadingImage(false);
       Alert.alert("Erro", "Não foi possível selecionar as imagens.");
     }
   }
@@ -189,6 +279,12 @@ export default function CreatePostScreen() {
       const postData: any = { title, content };
       if (imageUrl) postData.imageUrl = imageUrl;
       if (images.length > 0) postData.images = images;
+
+      console.log("Enviando post com dados:", {
+        ...postData,
+        imageUrl: imageUrl ? `${imageUrl.substring(0, 50)}...` : null,
+        imagesCount: images.length
+      });
 
       const url = isEditing
         ? `${BASE_URL}/feed/${postIdParam}`
@@ -319,20 +415,28 @@ export default function CreatePostScreen() {
           <View style={styles.imageSection}>
             <Text style={styles.sectionLabel}>Imagens (Opcional)</Text>
 
+            {/* Indicador de Upload */}
+            {uploadingImage && (
+              <View style={styles.uploadingIndicator}>
+                <ActivityIndicator size="small" color="#0EA5E9" />
+                <Text style={styles.uploadingText}>Fazendo upload...</Text>
+              </View>
+            )}
+
             {/* Botões de Upload */}
             <View style={styles.uploadButtons}>
               <TouchableOpacity
-                style={styles.uploadBtn}
+                style={[styles.uploadBtn, uploadingImage && { opacity: 0.5 }]}
                 onPress={pickImage}
-                disabled={loading}
+                disabled={loading || uploadingImage}
               >
                 <Text style={styles.uploadBtnText}>📷 Imagem Principal</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.uploadBtn}
+                style={[styles.uploadBtn, uploadingImage && { opacity: 0.5 }]}
                 onPress={pickMultipleImages}
-                disabled={loading}
+                disabled={loading || uploadingImage}
               >
                 <Text style={styles.uploadBtnText}>🖼️ Múltiplas Imagens</Text>
               </TouchableOpacity>
@@ -483,6 +587,21 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#2d2d2d",
     marginBottom: 8,
+  },
+  uploadingIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    padding: 12,
+    backgroundColor: "#E0F2FE",
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  uploadingText: {
+    fontSize: 14,
+    color: "#0EA5E9",
+    fontWeight: "600",
   },
   uploadButtons: {
     flexDirection: "row",

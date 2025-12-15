@@ -100,13 +100,17 @@ export default function Home() {
       if (!res.ok) throw new Error(`Erro ${res.status}`);
       const json = await res.json();
       const postsData = Array.isArray(json?.data) ? json.data : [];
-      console.log(
-        "Posts recebidos:",
-        JSON.stringify(postsData.slice(0, 2), null, 2)
-      );
-      console.log("Verificando campo 'edit' nos posts:");
+      
+      console.log("Posts recebidos:", postsData.length, "posts");
+      console.log("Verificando imagens nos posts:");
       postsData.forEach((p: any) => {
-        console.log(`Post ID ${p.id}: edit = ${p.edit}`);
+        if (p.imageUrl || p.images?.length) {
+          console.log(`Post ID ${p.id}:`, {
+            hasImageUrl: !!p.imageUrl,
+            imageUrlPreview: p.imageUrl ? p.imageUrl.substring(0, 100) : null,
+            imagesCount: p.images?.length || 0
+          });
+        }
       });
       
       setPosts(postsData);
@@ -437,6 +441,7 @@ export default function Home() {
               source={{ uri: item.imageUrl }}
               style={styles.postMainImage}
               resizeMode="cover"
+              onError={(e) => console.log("Erro ao carregar imagem:", item.imageUrl, e.nativeEvent.error)}
             />
           </View>
         )}
@@ -470,12 +475,17 @@ export default function Home() {
 
         <View style={styles.likeSection}>
           <TouchableOpacity
-            style={styles.likeButton}
+            style={[
+              styles.likeButton,
+              item.hasLiked && { backgroundColor: "#E0F2FE" },
+              likingPosts.has(item.id) && { opacity: 0.5 }
+            ]}
             onPress={() => handleLike(item.id)}
             activeOpacity={0.7}
+            disabled={likingPosts.has(item.id)}
           >
             <Text style={[styles.likeIcon, item.hasLiked && styles.likeIconActive]}>
-              👍
+              {item.hasLiked ? "👍" : "👍"}
             </Text>
             {(item.likesCount ?? 0) > 0 && (
               <Text style={[styles.likesCount, item.hasLiked && styles.likeTextActive]}>
@@ -942,15 +952,20 @@ const styles = StyleSheet.create({
   likeButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 0,
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: "#F8FAFC",
+    alignSelf: "flex-start",
   },
   likeIcon: {
     fontSize: 20,
+    opacity: 0.6,
   },
   likeIconActive: {
-    
+    opacity: 1,
+    transform: [{ scale: 1.1 }],
   },
   likeText: {
     fontSize: 13,
@@ -958,11 +973,12 @@ const styles = StyleSheet.create({
     color: "#64748B",
   },
   likeTextActive: {
-    color: "#F59E0B",
+    color: "#0EA5E9",
+    fontWeight: "700",
   },
   likesCount: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#000000",
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#475569",
   },
 });
