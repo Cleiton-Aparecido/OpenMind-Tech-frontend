@@ -1,5 +1,5 @@
-import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { BASE_URL } from "@/env";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   router,
