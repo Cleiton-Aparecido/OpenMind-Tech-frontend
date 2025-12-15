@@ -35,6 +35,8 @@ type Post = {
   imageUrl?: string;
   images?: string[];
   edit?: boolean; // 👈 vem do back
+  likesCount?: number; 
+  hasLiked?: boolean; 
 };
 
 export default function Home() {
@@ -49,13 +51,12 @@ export default function Home() {
     message?: string;
   } | null>(null);
 
-  // controla quais posts estão com "ler mais" aberto
   const [expandedPosts, setExpandedPosts] = useState<Record<string, boolean>>(
     {}
   );
 
-  // controla qual post está em "confirmar exclusão"
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [likingPosts, setLikingPosts] = useState<Set<string>>(new Set());
 
   const { flashType, flashTitle, flashMessage, refresh } =
     useLocalSearchParams<{
@@ -65,7 +66,6 @@ export default function Home() {
       refresh?: string;
     }>();
 
-  // Exibir mensagem flash quando houver (ex: vindo da criação/edição)
   useEffect(() => {
     if (flashType || flashTitle || flashMessage) {
       setFlash({
@@ -84,7 +84,6 @@ export default function Home() {
       setError(null);
       const token = await AsyncStorage.getItem("userToken");
       if (!token) {
-        // se não tiver token, não tenta buscar
         setPosts([]);
         setLoading(false);
         setRefreshing(false);
@@ -101,10 +100,19 @@ export default function Home() {
       if (!res.ok) throw new Error(`Erro ${res.status}`);
       const json = await res.json();
       const postsData = Array.isArray(json?.data) ? json.data : [];
-      console.log(
-        "Posts recebidos:",
-        JSON.stringify(postsData.slice(0, 2), null, 2)
-      );
+      
+      console.log("Posts recebidos:", postsData.length, "posts");
+      console.log("Verificando imagens nos posts:");
+      postsData.forEach((p: any) => {
+        if (p.imageUrl || p.images?.length) {
+          console.log(`Post ID ${p.id}:`, {
+            hasImageUrl: !!p.imageUrl,
+            imageUrlPreview: p.imageUrl ? p.imageUrl.substring(0, 100) : null,
+            imagesCount: p.images?.length || 0
+          });
+        }
+      });
+      
       setPosts(postsData);
     } catch (e: any) {
       setError(e?.message ?? "Falha ao carregar o feed");
@@ -114,10 +122,6 @@ export default function Home() {
     }
   }, []);
 
-  // 👉 TODA VEZ que a tela ganhar foco:
-  // - verifica se tem token
-  // - se não tiver → manda pra "/" (login / landing)
-  // - se tiver → carrega o feed para o usuário logado
   useFocusEffect(
     useCallback(() => {
       let alive = true;
@@ -132,7 +136,6 @@ export default function Home() {
           return;
         }
 
-        // sempre que focar a tela, recarrega o feed do usuário atual
         setLoading(true);
         await fetchFeed();
       })();
@@ -143,7 +146,6 @@ export default function Home() {
     }, [fetchFeed])
   );
 
-  // Atualizar feed quando o parâmetro refresh mudar (ex: após criar/editar post)
   useEffect(() => {
     if (refresh) {
       setLoading(true);
@@ -162,13 +164,11 @@ export default function Home() {
   const handleLogout = async () => {
     try {
       await AsyncStorage.removeItem("userToken");
-      // limpa feed ao deslogar
       setPosts([]);
       setExpandedPosts({});
       setConfirmDeleteId(null);
       setProfileOpen(false);
 
-      // volta sempre pra tela de login
       router.replace("/(tabs)/login");
     } catch (err) {
       console.error("Erro ao deslogar:", err);
@@ -177,7 +177,6 @@ export default function Home() {
 
   const goEditProfile = () => {
     setProfileOpen(false);
-    // @ts-ignore - rota dinâmica
     router.push("/(tabs)/edit-profile");
   };
 
@@ -187,7 +186,6 @@ export default function Home() {
     </View>
   );
 
-  // alternar ler mais / ler menos
   const toggleExpand = (postId: string) => {
     setExpandedPosts((prev) => ({
       ...prev,
@@ -234,7 +232,7 @@ export default function Home() {
           msg = data?.message || data?.error || raw || msg;
           if (Array.isArray(msg)) msg = msg[0];
         } catch (e) {
-          // se não for JSON, usa o texto mesmo
+          
         }
 
         throw new Error(
@@ -242,7 +240,6 @@ export default function Home() {
         );
       }
 
-      // se chegou aqui, deu certo
       setPosts((prev) => prev.filter((post) => post.id !== postId));
       setConfirmDeleteId(null);
 
@@ -258,6 +255,87 @@ export default function Home() {
         type: "error",
         title: "Erro ao excluir",
         message: err?.message || "Falha ao excluir publicação.",
+      });
+    }
+  };
+
+  const handleLike = async (postId: string) => {
+
+    if (likingPosts.has(postId)) {
+      return;
+    }
+
+    try {
+      const token = await AsyncStorage.getItem("userToken");
+      if (!token) {
+        setFlash({
+          type: "error",
+          title: "Erro",
+          message: "Você precisa estar logado para curtir posts.",
+        });
+        return;
+      }
+
+      setLikingPosts((prev) => new Set(prev).add(postId));
+
+      setPosts((prevPosts) =>
+        prevPosts.map((post) => {
+          if (post.id === postId) {
+            const wasLiked = post.hasLiked;
+            return {
+              ...post,
+              hasLiked: !wasLiked,
+              likesCount: wasLiked
+                ? (post.likesCount || 0) - 1
+                : (post.likesCount || 0) + 1,
+            };
+          }
+          return post;
+        })
+      );
+
+      const response = await fetch(`${BASE_URL}/feed/${postId}/like`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        setPosts((prevPosts) =>
+          prevPosts.map((post) => {
+            if (post.id === postId) {
+              const wasLiked = post.hasLiked;
+              return {
+                ...post,
+                hasLiked: !wasLiked,
+                likesCount: wasLiked
+                  ? (post.likesCount || 0) + 1
+                  : (post.likesCount || 0) - 1,
+              };
+            }
+            return post;
+          })
+        );
+
+        throw new Error("Falha ao curtir post");
+      }
+      
+      const data = await response.json();
+      console.log("Like response:", data);
+    } catch (err: any) {
+      console.error("Erro ao curtir post:", err);
+      setFlash({
+        type: "error",
+        title: "Erro",
+        message: err?.message || "Não foi possível curtir o post.",
+      });
+    } finally {
+      setLikingPosts((prev) => {
+        const next = new Set(prev);
+        next.delete(postId);
+        return next;
       });
     }
   };
@@ -363,6 +441,7 @@ export default function Home() {
               source={{ uri: item.imageUrl }}
               style={styles.postMainImage}
               resizeMode="cover"
+              onError={(e) => console.log("Erro ao carregar imagem:", item.imageUrl, e.nativeEvent.error)}
             />
           </View>
         )}
@@ -392,13 +471,36 @@ export default function Home() {
             {item.tags.map((t, i) => renderTag(t, i))}
           </View>
         )}
+
+
+        <View style={styles.likeSection}>
+          <TouchableOpacity
+            style={[
+              styles.likeButton,
+              item.hasLiked && { backgroundColor: "#E0F2FE" },
+              likingPosts.has(item.id) && { opacity: 0.5 }
+            ]}
+            onPress={() => handleLike(item.id)}
+            activeOpacity={0.7}
+            disabled={likingPosts.has(item.id)}
+          >
+            <Text style={[styles.likeIcon, item.hasLiked && styles.likeIconActive]}>
+              {item.hasLiked ? "👍" : "👍"}
+            </Text>
+            {(item.likesCount ?? 0) > 0 && (
+              <Text style={[styles.likesCount, item.hasLiked && styles.likeTextActive]}>
+                {item.likesCount}
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
     );
   };
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* HEADER */}
+
       <View style={styles.header}>
         <View style={styles.brandLeft}>
           <Image
@@ -839,5 +941,44 @@ const styles = StyleSheet.create({
     backgroundColor: "#F1F5F9",
     borderWidth: 1,
     borderColor: "#E2E8F0",
+  },
+
+  likeSection: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+  },
+  likeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    backgroundColor: "#F8FAFC",
+    alignSelf: "flex-start",
+  },
+  likeIcon: {
+    fontSize: 20,
+    opacity: 0.6,
+  },
+  likeIconActive: {
+    opacity: 1,
+    transform: [{ scale: 1.1 }],
+  },
+  likeText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#64748B",
+  },
+  likeTextActive: {
+    color: "#0EA5E9",
+    fontWeight: "700",
+  },
+  likesCount: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#475569",
   },
 });
