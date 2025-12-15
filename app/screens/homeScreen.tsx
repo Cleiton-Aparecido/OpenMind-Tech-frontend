@@ -783,9 +783,9 @@ export default function Home() {
         <View style={styles.sheet}>
           <Text style={styles.sheetTitle}>Perfil</Text>
 
-          <TouchableOpacity style={styles.sheetBtn} onPress={goEditProfile}>
+          {/* <TouchableOpacity style={styles.sheetBtn} onPress={goEditProfile}>
             <Text style={styles.sheetBtnText}>Alterar cadastro</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           <View style={styles.divider} />
 

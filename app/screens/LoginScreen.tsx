@@ -180,7 +180,7 @@ export default function LoginScreen() {
           <View style={[styles.input, styles.inputRow]}>
             <TextInput
               style={{ flex: 1 }}
-              placeholder="Senha"
+              placeholder="   Senha"
               value={senha}
               onChangeText={setSenha}
               secureTextEntry={!showPassword}
@@ -205,9 +205,9 @@ export default function LoginScreen() {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => router.push("/forgot-password")}>
+          {/* <TouchableOpacity onPress={() => router.push("/forgot-password")}>
             <Text style={styles.link}>Esqueci minha senha</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
           <Stack.Screen options={{ headerShown: false }} />
           <TouchableOpacity onPress={() => router.push("/register")}>
             <Text style={styles.link}>Criar conta</Text>
